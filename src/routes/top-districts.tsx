@@ -16,7 +16,7 @@ export const Route = createFileRoute("/top-districts")({
     { property: "og:type", content: "website" },
     { name: "twitter:card", content: "summary_large_image" },
   ] }),
-  validateSearch: (s: Record<string, unknown>) => ({ cycle: parseCycleOr(s["cycle"], 2026), view: s["view"] === "all" ? ("all" as const) : undefined }),
+  validateSearch: (s: Record<string, unknown>) => ({ cycle: parseCycleOr(s["cycle"], 2026), ...(s["view"] === "all" ? { view: "all" as const } : {}) }),
   component: TopDistrictsPage,
 });
 
