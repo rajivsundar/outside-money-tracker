@@ -1,7 +1,7 @@
 // Computed per-candidate results stored in the user's external Supabase project.
 // Pages read these first; only uncomputed candidates call the FEC.
 import { SPECIAL_ELECTIONS, type Chamber } from "@/config";
-import { fetchCandidateDetail, median, type CandidateDetail, type CandidateSummary } from "@/lib/fec";
+import { CALC_VERSION, fetchCandidateDetail, median, reconciles, type CandidateDetail, type CandidateSummary } from "@/lib/fec";
 import { recordDiag, setSharedCacheOnline, supabase, withTimeout } from "@/lib/supabase";
 
 const n = (v: unknown) => (v === null || v === undefined || v === "" || isNaN(Number(v)) ? null : Number(v));
@@ -19,19 +19,20 @@ const T = (ch: Chamber) => ch === "house" ? { res: "house_results", orig: "house
 
 export async function readResult(id: string, cycle: number, chamber: Chamber = "senate"): Promise<CandidateDetail | null> {
   const t = T(chamber);
-  const row = await safe<any>(`${t.res} read`, supabase.from(t.res).select("*").eq("cand_id", id).eq("cycle", cycle).maybeSingle());
+  const row = await safe<any>(`${t.res} read`, supabase.from(t.res).select("*").eq("cand_id", id).eq("cycle", cycle).gte("calc_version", CALC_VERSION).maybeSingle());
   if (!row) return null;
   const origins = await safe<any[]>(`${t.orig} read`, supabase.from(t.orig).select("donor_state, amount, contributions").eq("cand_id", id).eq("cycle", cycle));
   if (!origins) return null;
-  const R = n(row.receipts), itemized = n(row.itemized_indiv), unit = n(row.unitemized_indiv), pac = n(row.pac), party = n(row.party_total), other = n(row.self_and_other), inS = n(row.in_state), outS = n(row.out_of_state);
-  if ([R, itemized, unit, pac, party, other, inS, outS].some((v) => v === null) || !R) { console.warn("senate_results: unexpected row", row); return null; }
+  const R = n(row.receipts), itemized = n(row.itemized_indiv), unit = n(row.unitemized_indiv), pac = n(row.pac), party = n(row.party_total), self = n(row.self_funding), tr = n(row.transfers_other), inS = n(row.in_state), outS = n(row.out_of_state), sum = n(row.donor_state_sum);
+  if ([R, itemized, unit, pac, party, self, tr, inS, outS, sum].some((v) => v === null) || !R) { console.warn(`${t.res}: unexpected row`, row); return null; }
   recordDiag({ read: 1 + origins.length });
   const pct = (v: number) => Math.max(0, (v / R) * 100);
   return {
     receipts: R, itemized: itemized!, inStateItemized: inS!, outStateItemized: outS!,
     outShare: n(row.out_of_state_share),
-    categories: { inState: pct(inS!), outOfState: pct(outS!), unknown: pct(unit!), pacs: pct(pac!), party: pct(party!), other: pct(other!) },
-    donorStates: origins.map((o) => ({ state: o.donor_state, name: o.donor_state, total: Number(o.amount), count: Number(o.contributions ?? 0) })).sort((a, b) => b.total - a.total),
+    categories: { inState: pct(inS!), outOfState: pct(outS!), unknown: pct(unit!), pacs: pct(pac!), party: pct(party!), self: pct(self!), transfers: pct(tr!) },
+    donorStates: origins.filter((o) => Number(o.amount) > 0).map((o) => ({ state: o.donor_state, name: o.donor_state, total: Number(o.amount), count: Number(o.contributions ?? 0) })).sort((a, b) => b.total - a.total),
+    donorStateSum: sum!, reconciles: reconciles(sum!, itemized!), committeeId: row.principal_committee ?? null,
   };
 }
 
@@ -43,18 +44,24 @@ export async function writeResult(c: CandidateSummary, cycle: number, d: Candida
   const res = await safe(`${t.res} write`, supabase.from(t.res).upsert({
     ...extra, cand_id: c.id, cycle, state: c.state, name: c.name, party: c.party, receipts: R,
     itemized_indiv: d.itemized, unitemized_indiv: dollars(c2.unknown), pac: dollars(c2.pacs), party_total: dollars(c2.party),
-    self_and_other: dollars(c2.other), in_state: d.inStateItemized, out_of_state: d.outStateItemized,
-    out_of_state_share: d.outShare,
+    self_funding: dollars(c2.self), transfers_other: dollars(c2.transfers), self_and_other: dollars(c2.self) + dollars(c2.transfers),
+    in_state: d.inStateItemized, out_of_state: d.outStateItemized, donor_state_sum: d.donorStateSum,
+    out_of_state_share: d.outShare, principal_committee: d.committeeId, calc_version: CALC_VERSION,
     computed_at: new Date().toISOString(),
   }, { onConflict: "cand_id,cycle" }).select("cand_id"));
   if (res === null) return;
   recordDiag({ written: 1 });
-  if (d.donorStates.length) {
-    const o = await safe(`${t.orig} write`, supabase.from(t.orig).upsert(
-      d.donorStates.map((s) => ({ cand_id: c.id, cycle, donor_state: s.state, amount: s.total, contributions: Math.round(s.count) })),
-      { onConflict: "cand_id,cycle,donor_state" },
-    ).select("donor_state"));
-    if (o) recordDiag({ written: d.donorStates.length });
+  // Replace old donor-state rows is not possible without DELETE; zero out states no longer present.
+  const prev = await safe<any[]>(`${t.orig} read`, supabase.from(t.orig).select("donor_state").eq("cand_id", c.id).eq("cycle", cycle));
+  const now = new Set(d.donorStates.map((s) => s.state));
+  const stale = (prev ?? []).map((p) => p.donor_state as string).filter((s) => !now.has(s));
+  const rows = [
+    ...d.donorStates.map((s) => ({ cand_id: c.id, cycle, donor_state: s.state, amount: s.total, contributions: Math.round(s.count) })),
+    ...stale.map((s) => ({ cand_id: c.id, cycle, donor_state: s, amount: 0, contributions: 0 })),
+  ];
+  if (rows.length) {
+    const o = await safe(`${t.orig} write`, supabase.from(t.orig).upsert(rows, { onConflict: "cand_id,cycle,donor_state" }).select("donor_state"));
+    if (o) recordDiag({ written: rows.length });
   }
 }
 
@@ -81,7 +88,7 @@ export async function readCycleTrend(cycle: number): Promise<CycleTrend> {
   if (st === null) return null;
   const complete = !!st.completed_at && n(st.candidates_done)! >= n(st.candidates_total)!;
   if (!complete) return { cycle, complete: false, shares: [] };
-  const rows = await safe<any[]>("senate_results read", supabase.from("senate_results").select("out_of_state_share").eq("cycle", cycle));
+  const rows = await safe<any[]>("senate_results read", supabase.from("senate_results").select("out_of_state_share").eq("cycle", cycle).gte("calc_version", CALC_VERSION));
   if (!rows) return null;
   recordDiag({ read: rows.length + 1 });
   return { cycle, complete: true, shares: rows.map((r) => n(r.out_of_state_share)).filter((x): x is number => x !== null) };
@@ -100,7 +107,7 @@ export type ShareRow = { cand_id: string; name: string; party: string; state: st
 export async function readComputed(chamber: Chamber, cycle: number, state?: string): Promise<ShareRow[] | null> {
   const t = T(chamber);
   const cols = chamber === "house" ? "cand_id,name,party,state,district,itemized_indiv,out_of_state,out_of_state_share" : "cand_id,name,party,state,itemized_indiv,out_of_state,out_of_state_share";
-  let q = supabase.from(t.res).select(cols).eq("cycle", cycle).limit(5000);
+  let q = supabase.from(t.res).select(cols).eq("cycle", cycle).gte("calc_version", CALC_VERSION).limit(5000);
   if (state) q = q.eq("state", state);
   const rows = await safe<any[]>(`${t.res} read`, q);
   if (!rows) return null;

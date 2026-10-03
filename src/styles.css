@@ -70,6 +70,7 @@
   --color-pac: var(--pac);
   --color-party: var(--party);
   --color-other: var(--other);
+  --color-transfers: var(--transfers);
   --color-primary-surface: var(--primary-surface);
   --color-primary-line: var(--primary-line);
   --color-primary-subtle: var(--primary-subtle);
@@ -118,6 +119,7 @@
   --pac: oklch(0.5173 0.1045 294.12);
   --party: oklch(0.6583 0.0883 120.51);
   --other: oklch(0.5606 0.0849 52.4);
+  --transfers: oklch(0.72 0.06 60);
   --primary-surface: oklch(0.31 0.055 264);
   --primary-line: oklch(0.45 0.055 264);
   --primary-subtle: oklch(0.86 0.02 264);

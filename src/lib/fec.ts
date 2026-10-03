@@ -165,42 +165,59 @@ export type DonorState = { state: string; name: string; total: number; count: nu
 export type CandidateDetail = {
   receipts: number; itemized: number; inStateItemized: number; outStateItemized: number;
   outShare: number | null; categories: Categories; donorStates: DonorState[];
+  /** Sum of donor-state rows (dollars) and whether it is within 5% of individual_itemized_contributions. */
+  donorStateSum: number; reconciles: boolean; committeeId: string | null;
 };
 
+export const CALC_VERSION = 2;
+export const RECONCILE_TOLERANCE = 0.05;
+export const reconciles = (stateSum: number, itemized: number) =>
+  itemized > 0 ? Math.abs(stateSum - itemized) / itemized <= RECONCILE_TOLERANCE : stateSum === 0;
+
+/** Everything comes from the candidate's principal campaign committee (calc_version 2). */
 export async function fetchCandidateDetail(id: string, raceState: string, cycle: number): Promise<CandidateDetail> {
-  const totals = await fecGet<any>(`/candidate/${id}/totals/`, { cycle }, cycle);
+  const cm = await fecGet<any>(`/candidate/${id}/committees/`, { cycle, designation: "P" }, cycle);
+  const cmte: string | undefined = cm?.results?.[0]?.committee_id;
+  if (!cmte) { console.warn("FEC: no principal committee", id, cm); throw new DataUnavailable("data unavailable"); }
+  const totals = await fecGet<any>(`/committee/${cmte}/totals/`, { cycle }, cycle);
   const t = totals?.results?.[0];
   const f = {
     receipts: num(t?.receipts), itemized: num(t?.individual_itemized_contributions), unitemized: num(t?.individual_unitemized_contributions),
     pac: num(t?.other_political_committee_contributions), party: num(t?.political_party_committee_contributions), self: num(t?.candidate_contribution),
   };
   if (Object.values(f).some((v) => v === null) || !f.receipts) {
-    console.warn("FEC totals: unexpected fields", totals);
+    console.warn("FEC committee totals: unexpected fields", totals);
     throw new DataUnavailable("data unavailable");
   }
-  const byState = await fecGet<any>("/schedules/schedule_a/by_state/by_candidate/", { candidate_id: id, cycle, per_page: 100 }, cycle);
-  const rows: any[] = byState?.results ?? [];
+  const loans = num(t?.loans_made_by_candidate);
+  if (loans === null) console.warn("FEC committee totals: loans_made_by_candidate missing; counted under Transfers & other", t);
   const donorStates: DonorState[] = [];
-  for (const r of rows) {
-    const total = num(r.total);
-    if (!r.state || total === null) { console.warn("FEC by_state: unexpected row", byState); throw new DataUnavailable("data unavailable"); }
-    donorStates.push({ state: r.state, name: r.state_full ?? r.state, total, count: num(r.count) ?? 0 });
+  for (let page = 1; page < 10; page++) {
+    const byState = await fecGet<any>("/schedules/schedule_a/by_state/", { committee_id: cmte, cycle, per_page: 100, page }, cycle);
+    const rows: any[] = byState?.results ?? [];
+    for (const r of rows) {
+      const total = num(r.total);
+      if (!r.state || total === null) { console.warn("FEC by_state: unexpected row", byState); throw new DataUnavailable("data unavailable"); }
+      donorStates.push({ state: r.state, name: r.state_full ?? r.state, total, count: num(r.count) ?? 0 });
+    }
+    if (page >= (byState?.pagination?.pages ?? 1)) break;
   }
   donorStates.sort((a, b) => b.total - a.total);
   const stateSum = donorStates.reduce((s, d) => s + d.total, 0);
-  const inSum = donorStates.filter((d) => d.state === raceState).reduce((s, d) => s + d.total, 0);
-  const inFrac = stateSum > 0 ? inSum / stateSum : null;
+  const inS = donorStates.filter((d) => d.state === raceState).reduce((s, d) => s + d.total, 0);
+  const outS = stateSum - inS; // every other row, incl. AA/AE/AP/ZZ and territories
   const itemized = f.itemized!;
-  const inStateItemized = inFrac === null ? 0 : itemized * inFrac;
-  const outStateItemized = inFrac === null ? 0 : itemized - inStateItemized;
+  const ok = reconciles(stateSum, itemized);
+  if (!ok) console.warn(`Totals don't reconcile for ${id} (${cmte}): donor-state rows $${stateSum.toFixed(2)} vs individual_itemized_contributions $${itemized.toFixed(2)}`);
   const R = f.receipts!;
+  const selfFunding = f.self! + (loans ?? 0);
   const pct = (v: number) => Math.max(0, (v / R) * 100);
-  const other = Math.max(0, R - itemized - f.unitemized! - f.pac! - f.party!);
+  const transfers = Math.max(0, R - inS - outS - f.unitemized! - f.pac! - f.party! - selfFunding);
   return {
-    receipts: R, itemized, inStateItemized, outStateItemized,
-    outShare: inFrac === null ? null : (1 - inFrac) * 100,
-    categories: { inState: pct(inStateItemized), outOfState: pct(outStateItemized), unknown: pct(f.unitemized!), pacs: pct(f.pac!), party: pct(f.party!), other: pct(other) },
-    donorStates,
+    receipts: R, itemized, inStateItemized: inS, outStateItemized: outS,
+    outShare: stateSum > 0 ? (outS / stateSum) * 100 : null,
+    categories: { inState: pct(inS), outOfState: pct(outS), unknown: pct(f.unitemized!), pacs: pct(f.pac!), party: pct(f.party!), self: pct(selfFunding), transfers: pct(transfers) },
+    donorStates, donorStateSum: stateSum, reconciles: ok, committeeId: cmte,
   };
 }
 
