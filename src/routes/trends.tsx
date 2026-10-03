@@ -1,26 +1,39 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { ChamberToggle } from "@/components/finance";
 import { useQuery } from "@tanstack/react-query";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { CYCLES, IN_PROGRESS_CYCLE, cycleLabel } from "@/config";
+import { CYCLES, IN_PROGRESS_CYCLE, chamberName, cycleLabel, parseChamber, type Chamber } from "@/config";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getCycleSummary, median } from "@/lib/fec";
-import { readCycleTrend } from "@/lib/results";
+import { readComputed, readCycleTrend } from "@/lib/results";
 
 export const Route = createFileRoute("/trends")({
   head: () => ({ meta: [
     { title: "Trends — Outside Money" },
-    { name: "description", content: "Median out-of-state share of itemized individual dollars for U.S. Senate candidates, by cycle, 2016–2026." },
+    { name: "description", content: "Median out-of-state share of itemized individual dollars for U.S. Senate and House candidates, by cycle, 2016–2026." },
     { property: "og:title", content: "Trends — Outside Money" },
-    { property: "og:description", content: "Median out-of-state share of itemized individual dollars across Senate candidates, 2016–2026." },
+    { property: "og:description", content: "Median out-of-state share of itemized individual dollars across Senate and House candidates, 2016–2026." },
     { property: "og:type", content: "website" },
     { name: "twitter:card", content: "summary_large_image" },
   ] }),
+  validateSearch: (s: Record<string, unknown>) => ({ chamber: parseChamber(s["chamber"]) }),
   component: TrendsPage,
 });
 
-type Point = { cycle: number; median: number | null; n: number; computed: boolean };
+type Point = { cycle: number; median: number | null; n: number; computed: boolean; states?: number };
 
-async function loadTrends(): Promise<Point[]> {
+async function loadHouse(): Promise<Point[]> {
+  const out: Point[] = [];
+  for (const cycle of CYCLES) {
+    const rows = (await readComputed("house", cycle)) ?? [];
+    const shares = rows.map((r) => r.share).filter((x): x is number => x !== null);
+    out.push({ cycle, median: median(shares), n: shares.length, computed: rows.length > 0, states: new Set(rows.map((r) => r.state)).size });
+  }
+  return out;
+}
+
+async function loadTrends(chamber: Chamber): Promise<Point[]> {
+  if (chamber === "house") return loadHouse();
   const out: Point[] = [];
   for (const cycle of CYCLES) {
     const t = await readCycleTrend(cycle);
@@ -34,17 +47,22 @@ async function loadTrends(): Promise<Point[]> {
 }
 
 function TrendsPage() {
-  const { data, isLoading } = useQuery({ queryKey: ["trends"], queryFn: loadTrends, staleTime: 0 });
+  const { chamber } = Route.useSearch();
+  const navigate = useNavigate();
+  const { data, isLoading } = useQuery({ queryKey: ["trends", chamber], queryFn: () => loadTrends(chamber), staleTime: 0 });
   const chart = (data ?? []).map((p) => ({ cycle: String(p.cycle), median: p.median === null ? null : Number(p.median.toFixed(1)) }));
   return (
     <main className="mx-auto max-w-5xl px-4 py-12 sm:px-6 sm:py-16">
       <p className="section-kicker">Over time</p>
       <h1 className="font-serif text-4xl font-bold sm:text-5xl">Trends</h1>
-      <p className="mt-4 max-w-2xl text-muted-foreground">Median out-of-state share of itemized individual dollars across Senate candidates, for each fully computed cycle. Compute a cycle on the <Link to="/leaderboard" search={{ cycle: 2024 }} className="font-semibold text-primary hover:underline">Leaderboard</Link> to add it here.</p>
-      <p className="mt-3 max-w-2xl text-sm text-muted-foreground">Note: Each cycle covers different Senate seats (one-third of the Senate is elected every two years).</p>
+      <div className="mt-5"><ChamberToggle value={chamber} onChange={(c) => navigate({ to: "/trends", search: { chamber: c } })} /></div>
+      {chamber === "senate" ? <>
+        <p className="mt-4 max-w-2xl text-muted-foreground">Median out-of-state share of itemized individual dollars across Senate candidates, for each fully computed cycle. Compute a cycle on the <Link to="/leaderboard" search={{ cycle: 2024, chamber: "senate" }} className="font-semibold text-primary hover:underline">Leaderboard</Link> to add it here.</p>
+        <p className="mt-3 max-w-2xl text-sm text-muted-foreground">Note: Each cycle covers different Senate seats (one-third of the Senate is elected every two years).</p>
+      </> : <p className="mt-4 max-w-2xl text-muted-foreground">Median out-of-state share of itemized individual dollars across the House candidates computed so far in each cycle. House states are computed when someone opens them on the map, so a cycle may cover only some states (shown in the table).</p>}
       {isLoading && <p className="mt-8 text-muted-foreground">Checking computed cycles…</p>}
       {data && <>
-        <div className="mt-10 h-72 w-full" role="img" aria-label="Line chart of median out-of-state share by cycle">
+        <div className="mt-10 h-72 w-full" role="img" aria-label={`Line chart of median out-of-state share by cycle, ${chamberName(chamber)}`}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chart} margin={{ top: 10, right: 16, bottom: 0, left: 0 }}>
               <CartesianGrid stroke="var(--color-border)" vertical={false} />
@@ -56,13 +74,13 @@ function TrendsPage() {
           </ResponsiveContainer>
         </div>
         <Table className="mt-8">
-          <TableHeader><TableRow><TableHead>Cycle</TableHead><TableHead className="text-right">Median out-of-state share</TableHead><TableHead className="text-right">Candidates with data</TableHead></TableRow></TableHeader>
+          <TableHeader><TableRow><TableHead>Cycle</TableHead><TableHead className="text-right">Median out-of-state share</TableHead><TableHead className="text-right">Candidates with data</TableHead>{chamber === "house" && <TableHead className="text-right">States computed</TableHead>}</TableRow></TableHeader>
           <TableBody>
             {data.map((p) => (
               <TableRow key={p.cycle}>
                 <TableCell><span className="font-medium">{p.cycle}</span><span className="block text-xs text-muted-foreground">{cycleLabel(p.cycle)}</span></TableCell>
                 <TableCell className="text-right font-mono tabular-nums">{!p.computed ? <span className="font-sans text-muted-foreground">not computed yet</span> : p.median === null ? <span className="font-sans text-muted-foreground">data unavailable</span> : <>{p.median.toFixed(1)}% <span className="block font-sans text-[10px] text-muted-foreground">of itemized individual dollars</span></>}</TableCell>
-                <TableCell className="text-right font-mono tabular-nums">{p.computed ? p.n : "—"}</TableCell>
+                <TableCell className="text-right font-mono tabular-nums">{p.computed ? p.n : "—"}</TableCell>{chamber === "house" && <TableCell className="text-right font-mono tabular-nums">{p.computed ? `${p.states} of 50` : "—"}</TableCell>}
               </TableRow>
             ))}
           </TableBody>

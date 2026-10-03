@@ -1,5 +1,5 @@
 import { loadOrComputeDetail } from "@/lib/results";
-import { FEC_API_BASE, FEC_API_KEY, MIN_RECEIPTS, SPECIAL_ELECTIONS, ttlFor } from "@/config";
+import { FEC_API_BASE, FEC_API_KEY, MIN_RECEIPTS, SPECIAL_ELECTIONS, ttlFor, type Chamber } from "@/config";
 import type { Categories } from "@/components/finance";
 import { recordDiag, setSharedCacheOnline, supabase, withTimeout } from "@/lib/supabase";
 import { useSyncExternalStore } from "react";
@@ -100,12 +100,14 @@ async function fecGet<T = any>(path: string, params: Record<string, string | num
 
 const num = (v: unknown) => (typeof v === "number" ? v : typeof v === "string" && v !== "" && !isNaN(Number(v)) ? Number(v) : null);
 
-export type CandidateSummary = { id: string; name: string; party: string; state: string; stateName: string; receipts: number };
+export type CandidateSummary = { id: string; name: string; party: string; state: string; stateName: string; receipts: number; district?: string | undefined };
 
-export async function fetchCandidates(cycle: number): Promise<CandidateSummary[]> {
+export async function fetchCandidates(cycle: number, office: "S" | "H" = "S", state?: string): Promise<CandidateSummary[]> {
   const out: CandidateSummary[] = [];
   for (let page = 1; page < 20; page++) {
-    const json = await fecGet<any>("/candidates/totals/", { election_year: cycle, office: "S", per_page: 100, sort: "-receipts", page }, cycle);
+    const params: Record<string, string | number> = { election_year: cycle, office, per_page: 100, sort: "-receipts", page };
+    if (state) params["state"] = state;
+    const json = await fecGet<any>("/candidates/totals/", params, cycle);
     const rows: any[] = json?.results ?? [];
     let stop = rows.length === 0;
     for (const r of rows) {
@@ -113,18 +115,32 @@ export async function fetchCandidates(cycle: number): Promise<CandidateSummary[]
       if (!r.candidate_id || !r.state || receipts === null) { console.warn("FEC candidate row has unexpected shape", r); continue; }
       if (receipts <= MIN_RECEIPTS) { stop = true; continue; }
       if (out.some((c) => c.id === r.candidate_id)) continue;
-      out.push({ id: r.candidate_id, name: titleName(r.name ?? r.candidate_id), party: r.party_full ?? r.party ?? "", state: r.state, stateName: r.state_full ?? r.state, receipts });
+      out.push({ id: r.candidate_id, name: titleName(r.name ?? r.candidate_id), party: r.party_full ?? r.party ?? "", state: r.state, stateName: r.state_full ?? r.state, receipts, district: office === "H" ? await houseDistrict(r, cycle) : undefined });
     }
     if (stop || page >= (json?.pagination?.pages ?? 1)) break;
   }
   return out;
 }
 
+async function houseDistrict(r: any, cycle: number): Promise<string | undefined> {
+  const pad = (v: unknown) => (v === null || v === undefined || v === "" ? undefined : String(v).padStart(2, "0"));
+  const direct = pad(r.district);
+  if (direct) return direct;
+  const info = await fecGet<any>(`/candidate/${r.candidate_id}/`, {}, cycle);
+  const d = pad(info?.results?.[0]?.district);
+  if (!d) console.warn("FEC: district missing for House candidate", r, info);
+  return d;
+}
+
+export const houseCandidatesQuery = (state: string, cycle: number) => ({
+  queryKey: ["fec-house-candidates", cycle, state], queryFn: () => fetchCandidates(cycle, "H", state), staleTime: Infinity, retry: 1,
+});
+
 export const candidatesQuery = (cycle: number) => ({
   queryKey: ["fec-candidates", cycle], queryFn: () => fetchCandidates(cycle), staleTime: Infinity, retry: 1,
 });
-export const detailQuery = (c: CandidateSummary, cycle: number) => ({
-  queryKey: ["fec-detail", cycle, c.id], queryFn: () => loadOrComputeDetail(c, cycle), staleTime: Infinity, retry: 0,
+export const detailQuery = (c: CandidateSummary, cycle: number, chamber: Chamber = "senate") => ({
+  queryKey: ["fec-detail", chamber, cycle, c.id], queryFn: () => loadOrComputeDetail(c, cycle, chamber), staleTime: Infinity, retry: 0,
 });
 
 export type Race = { state: string; stateName: string; total: number; special: boolean; candidates: CandidateSummary[] };

@@ -1,7 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import type { ReactNode } from "react";
-import { CYCLES, cycleLabel } from "@/config";
+import { CYCLES, cycleLabel, type Chamber } from "@/config";
+import { scaleLinear } from "d3-scale";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export const categoryMeta = [
@@ -88,6 +89,41 @@ export function CycleSelect({ value, onChange, dark = false }: { value: number; 
           {CYCLES.map((c) => <SelectItem key={c} value={String(c)}>{cycleLabel(c)}</SelectItem>)}
         </SelectContent>
       </Select>
+    </div>
+  );
+}
+
+
+/** Map/tile scale for median out-of-state share (% of itemized individual dollars). */
+export const SHARE_STOPS = ["#EAF4F6", "#1F7A8C", "#E07A1F"] as const;
+export const shareColor = scaleLinear<string>().domain([0, 50, 100]).range([...SHARE_STOPS]).clamp(true);
+
+export function ShareLegend({ noRaceLabel }: { noRaceLabel?: string | undefined }) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-6 gap-y-3 text-xs text-muted-foreground">
+      <div>
+        <div className="h-2.5 w-48 rounded-sm" style={{ background: `linear-gradient(to right, ${SHARE_STOPS.join(",")})` }} aria-hidden="true" />
+        <div className="mt-1 flex w-48 justify-between font-mono"><span>0%</span><span>50%</span><span>100%</span></div>
+        <p>Median out-of-state share of itemized individual dollars</p>
+      </div>
+      <span className="inline-flex items-center gap-2"><span className="hatch size-4 rounded-sm border border-border" aria-hidden="true" />Not computed yet — click to load</span>
+      {noRaceLabel && <span className="inline-flex items-center gap-2"><span className="hatch-dense size-4 rounded-sm border border-border" aria-hidden="true" />{noRaceLabel}</span>}
+    </div>
+  );
+}
+
+export function ChamberToggle({ value, onChange, dark = false }: { value: Chamber; onChange: (c: Chamber) => void; dark?: boolean }) {
+  return (
+    <div>
+      <span className="mb-2 block text-sm font-semibold" id="chamber-label">Chamber</span>
+      <div role="radiogroup" aria-labelledby="chamber-label" className={`inline-flex h-11 rounded-md border p-1 ${dark ? "border-primary-line bg-primary-surface" : "border-border"}`}>
+        {(["senate", "house"] as const).map((c) => (
+          <button key={c} role="radio" aria-checked={value === c} onClick={() => onChange(c)}
+            className={`rounded px-4 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${value === c ? (dark ? "bg-primary-foreground text-primary" : "bg-primary text-primary-foreground") : dark ? "text-primary-foreground" : "text-muted-foreground"}`}>
+            {c === "senate" ? "Senate" : "House"}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

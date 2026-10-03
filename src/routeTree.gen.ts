@@ -14,6 +14,8 @@ import { Route as LeaderboardRouteImport } from './routes/leaderboard'
 import { Route as MethodologyRouteImport } from './routes/methodology'
 import { Route as TrendsRouteImport } from './routes/trends'
 import { Route as RaceStateRouteImport } from './routes/race.$state'
+import { Route as StateStRouteImport } from './routes/state.$st'
+import { Route as HouseStDistrictRouteImport } from './routes/house.$st.$district'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -40,6 +42,16 @@ const RaceStateRoute = RaceStateRouteImport.update({
   path: '/race/$state',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StateStRoute = StateStRouteImport.update({
+  id: '/state/$st',
+  path: '/state/$st',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HouseStDistrictRoute = HouseStDistrictRouteImport.update({
+  id: '/house/$st/$district',
+  path: '/house/$st/$district',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -47,6 +59,8 @@ export interface FileRoutesByFullPath {
   '/methodology': typeof MethodologyRoute
   '/trends': typeof TrendsRoute
   '/race/$state': typeof RaceStateRoute
+  '/state/$st': typeof StateStRoute
+  '/house/$st/$district': typeof HouseStDistrictRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -54,6 +68,8 @@ export interface FileRoutesByTo {
   '/methodology': typeof MethodologyRoute
   '/trends': typeof TrendsRoute
   '/race/$state': typeof RaceStateRoute
+  '/state/$st': typeof StateStRoute
+  '/house/$st/$district': typeof HouseStDistrictRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -62,12 +78,28 @@ export interface FileRoutesById {
   '/methodology': typeof MethodologyRoute
   '/trends': typeof TrendsRoute
   '/race/$state': typeof RaceStateRoute
+  '/state/$st': typeof StateStRoute
+  '/house/$st/$district': typeof HouseStDistrictRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/leaderboard' | '/methodology' | '/trends' | '/race/$state'
+  fullPaths:
+    | '/'
+    | '/leaderboard'
+    | '/methodology'
+    | '/trends'
+    | '/race/$state'
+    | '/state/$st'
+    | '/house/$st/$district'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/leaderboard' | '/methodology' | '/trends' | '/race/$state'
+  to:
+    | '/'
+    | '/leaderboard'
+    | '/methodology'
+    | '/trends'
+    | '/race/$state'
+    | '/state/$st'
+    | '/house/$st/$district'
   id:
     | '__root__'
     | '/'
@@ -75,6 +107,8 @@ export interface FileRouteTypes {
     | '/methodology'
     | '/trends'
     | '/race/$state'
+    | '/state/$st'
+    | '/house/$st/$district'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -83,6 +117,8 @@ export interface RootRouteChildren {
   MethodologyRoute: typeof MethodologyRoute
   TrendsRoute: typeof TrendsRoute
   RaceStateRoute: typeof RaceStateRoute
+  StateStRoute: typeof StateStRoute
+  HouseStDistrictRoute: typeof HouseStDistrictRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -122,6 +158,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RaceStateRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/state/$st': {
+      id: '/state/$st'
+      path: '/state/$st'
+      fullPath: '/state/$st'
+      preLoaderRoute: typeof StateStRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/house/$st/$district': {
+      id: '/house/$st/$district'
+      path: '/house/$st/$district'
+      fullPath: '/house/$st/$district'
+      preLoaderRoute: typeof HouseStDistrictRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -131,6 +181,8 @@ const rootRouteChildren: RootRouteChildren = {
   MethodologyRoute: MethodologyRoute,
   TrendsRoute: TrendsRoute,
   RaceStateRoute: RaceStateRoute,
+  StateStRoute: StateStRoute,
+  HouseStDistrictRoute: HouseStDistrictRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

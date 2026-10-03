@@ -4,9 +4,9 @@ import { CategoryLegend } from "@/components/finance";
 export const Route = createFileRoute("/methodology")({
   head: () => ({ meta: [
     { title: "Methodology — Outside Money" },
-    { name: "description", content: "How Outside Money classifies and calculates 2024 Senate campaign receipts." },
+    { name: "description", content: "How Outside Money classifies and maps U.S. Senate and House campaign receipts, 2016–2026." },
     { property: "og:title", content: "Methodology — Outside Money" },
-    { property: "og:description", content: "How Outside Money classifies and calculates 2024 Senate campaign receipts." },
+    { property: "og:description", content: "How Outside Money classifies and maps U.S. Senate and House campaign receipts, 2016–2026." },
     { property: "og:type", content: "website" },
     { name: "twitter:card", content: "summary_large_image" },
   ] }),
@@ -45,6 +45,9 @@ function MethodologyPage() {
         <section><h2 className="font-serif text-2xl font-bold">Cycles</h2><p className="mt-3 text-sm leading-6 text-muted-foreground">Each cycle is a two-year period ending in the even year shown (for example, 2020 covers January 2019 through December 2020). Cycles 2016 through 2026 are available. Each cycle covers different Senate seats, because one-third of the Senate is elected every two years. The 2026 cycle is in progress: its figures include data through the latest FEC filing and will change.</p></section>
         <section><h2 className="font-serif text-2xl font-bold">Special elections</h2><p className="mt-3 text-sm leading-6 text-muted-foreground">When a state holds more than one Senate race in a cycle (a regular and a special election), all of its candidates are shown together on the race page with the note "Includes special-election candidates".</p></section>
         <section><h2 className="font-serif text-2xl font-bold">Source</h2><p className="mt-3 text-sm leading-6 text-muted-foreground">All figures come live from the Federal Election Commission's OpenFEC API, for the selected two-year period. Completed cycles (2016–2022) are cached indefinitely, 2024 for 30 days and 2026 for 24 hours. If a figure is missing, it is shown as "data unavailable".</p></section>
+        <section><h2 className="font-serif text-2xl font-bold">House races</h2><p className="mt-3 text-sm leading-6 text-muted-foreground">For House candidates the geographic measure is state-level for now: out-of-state share of itemized individual dollars means donors outside the district's state. In-district vs out-of-district is coming later — it needs ZIP-level data. House states are computed on demand when a visitor opens them.</p></section>
+        <section><h2 className="font-serif text-2xl font-bold">District tiles</h2><p className="mt-3 text-sm leading-6 text-muted-foreground">House districts are shown as equal-size tiles ordered by district number, not as geographic boundaries, because several states redrew their maps for 2026. States with a single seat are labeled "At-large".</p></section>
+        <section><h2 className="font-serif text-2xl font-bold">Map colours</h2><p className="mt-3 text-sm leading-6 text-muted-foreground">Each state's and tile's colour is the median out-of-state share of itemized individual dollars among the candidates computed so far. Hatched areas mean no data (not computed yet, or no Senate race that cycle), never zero. Every map and tile grid also has a "View as table" option.</p></section>
         <section><h2 className="font-serif text-2xl font-bold">Credits</h2><p className="mt-3 text-sm leading-6 text-muted-foreground">Data courtesy of the U.S. Federal Election Commission (FEC). Built with support from the GW Open Source Program Office (GW OSPO).</p></section>
       </div>
     </main>
