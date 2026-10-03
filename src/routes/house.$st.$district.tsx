@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import { CategoryLegend } from "@/components/finance";
+import { TopOrgs } from "@/components/top-orgs";
 import { CandidateBlock } from "@/components/candidate-block";
 import { STATE_NAME, cycleLabel, parseCycle } from "@/config";
 import { houseCandidatesQuery } from "@/lib/fec";
@@ -43,13 +44,15 @@ function DistrictPage() {
         </div>
       </section>
       <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-        <p className="mb-6 max-w-2xl text-sm text-muted-foreground">Out-of-state means a donor state other than {STATE_NAME[code] ?? code}. In-district vs out-of-district is coming later — it needs ZIP-level data.</p>
+        <p className="mb-6 max-w-2xl text-sm text-muted-foreground">Out-of-state means a donor state other than {STATE_NAME[code] ?? code}.</p>
+        <div className="mb-8 max-w-2xl rounded-md border border-border bg-muted p-4 text-sm text-muted-foreground">Out-of-district: coming next — it needs donor ZIP codes matched to each election's district map, which the FEC does not summarize per candidate.</div>
         {isLoading && <p className="text-muted-foreground">Loading candidates…</p>}
         {isError && <p className="text-muted-foreground">Data unavailable.</p>}
         {data && !cands.length && <p className="text-muted-foreground">No candidates with over $100,000 in receipts were found for this district in {cycle}.</p>}
         {cands.length > 0 && <>
           <div className="mb-8"><CategoryLegend /></div>
           <div className="space-y-12">{cands.map((c) => <CandidateBlock key={`${cycle}-${c.id}`} c={c} cycle={cycle} chamber="house" />)}</div>
+          <TopOrgs chamber="house" cycle={cycle} state={code} district={district} cands={cands} />
         </>}
       </section>
     </main>

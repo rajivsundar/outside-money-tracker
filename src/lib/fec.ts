@@ -71,7 +71,7 @@ export function cachePut(cacheKey: string, data: unknown) {
   void sharedPut(cacheKey, data);
 }
 
-async function fecGet<T = any>(path: string, params: Record<string, string | number>, cycle: number): Promise<T> {
+export async function fecGet<T = any>(path: string, params: Record<string, string | number>, cycle: number): Promise<T> {
   const query = new URLSearchParams(Object.entries(params).map(([k, v]) => [k, String(v)])).toString();
   const cacheKey = `${path}?${query}`; // request path + query, never the api_key
   const cached = await cacheGet<T>(cacheKey, cycle);

@@ -100,7 +100,7 @@ function HouseSection({ code, cycle, passive = false }: { code: string; cycle: n
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
         <p className="section-kicker">U.S. House</p>
         <h2 className="section-title">House districts</h2>
-        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">Out-of-state means a donor state other than {STATE_NAME[code] ?? code}. In-district vs out-of-district is coming later — it needs ZIP-level data. Tiles are equal-size and ordered by district number, not map boundaries.</p>
+        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">Tile colours show the median out-of-state share of itemized individual dollars (donor state other than {STATE_NAME[code] ?? code}). Tiles are equal-size and ordered by district number, not map boundaries.</p>
         {passive && !rows.length && <p className="mt-4 text-sm"><Link to="/state/$st" params={{ st: code.toLowerCase() }} search={{ cycle, chamber: "house" }} className="font-semibold text-primary hover:underline">Switch to House to load this state's districts</Link></p>}
         {progress && <div className="mt-5 max-w-lg"><Progress value={(progress.done / Math.max(1, progress.total)) * 100} /><p className="mt-1 text-xs text-muted-foreground">Loading {progress.done} of {progress.total} candidates from the FEC</p></div>}
         {cands.isLoading && <p className="mt-4 text-sm text-muted-foreground">Loading House candidates from the FEC…</p>}
