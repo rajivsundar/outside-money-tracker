@@ -9,5 +9,5 @@
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
 
-- Keep the product fully static: all application data must be imported from the bundled Senate JSON file, because the project intentionally has no backend.
+- All data is fetched from the public OpenFEC API directly in the browser via src/lib/fec.ts (localStorage cache, throttled), because the project intentionally has no backend.
 - Keep campaign-finance category metadata and formatting in shared presentation utilities so every route labels denominators consistently.

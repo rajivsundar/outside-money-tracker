@@ -14,12 +14,12 @@ export const Route = createFileRoute("/methodology")({
 });
 
 const definitions = [
-  ["In-state", "Itemized contributions from individuals whose reported address is in the candidate’s state."],
-  ["Out-of-state", "Itemized contributions from individuals whose reported address is outside the candidate’s state."],
-  ["Unknown small donors", "Unitemized individual contributions and records without enough location detail to classify."],
-  ["PACs", "Receipts from political action committees and other committees, excluding party committees."],
-  ["Party", "Receipts attributed to national, state, or local party committees."],
-  ["Self & other", "Candidate contributions and loans, transfers, refunds, offsets, and other receipts."],
+  ["In-state", "Itemized individual dollars whose donor address is in the race state. Calculated as the candidate's itemized individual total times the in-state fraction of FEC donor-state totals."],
+  ["Out-of-state", "Itemized individual dollars from every other state. Military addresses (AA, AE, AP), unknown (ZZ) and U.S. territories count as out-of-state."],
+  ["Unknown small donors", "Unitemized individual contributions. Donors who give $200 or less in the cycle are not itemized, so their location is unknown."],
+  ["PACs", "Contributions from other political committees (FEC: other_political_committee_contributions)."],
+  ["Party", "Contributions from political party committees."],
+  ["Self & other", "Everything else in total receipts: candidate contributions and loans, transfers, refunds and other receipts."],
 ];
 
 function MethodologyPage() {
@@ -40,9 +40,10 @@ function MethodologyPage() {
 
       <div className="mt-14 grid gap-10 border-t-2 border-foreground pt-8 sm:grid-cols-2">
         <section><h2 className="font-serif text-2xl font-bold">Denominators</h2><p className="mt-3 text-sm leading-6 text-muted-foreground">Receipt-bar percentages use total receipts for that candidate. Geographic shares use only itemized individual dollars, because those records contain donor location information. Every displayed percentage states which denominator it uses.</p></section>
-        <section><h2 className="font-serif text-2xl font-bold">Rounding</h2><p className="mt-3 text-sm leading-6 text-muted-foreground">Receipt categories are shown as whole percentages and sum to 100%. Geographic shares are shown to one decimal place in detail views. Dollar totals may be compacted for summaries and shown in full in tables.</p></section>
-        <section><h2 className="font-serif text-2xl font-bold">Scope</h2><p className="mt-3 text-sm leading-6 text-muted-foreground">This demonstration covers three 2024 U.S. Senate races. It does not include independent spending, candidate support or opposition by outside groups, or election outcomes.</p></section>
-        <section><h2 className="font-serif text-2xl font-bold">Data status</h2><p className="mt-3 text-sm leading-6 text-muted-foreground">All names and amounts are placeholder data bundled with this demonstration. They are not Federal Election Commission records and should not be cited as factual campaign-finance figures.</p></section>
+        <section><h2 className="font-serif text-2xl font-bold">Itemized donors</h2><p className="mt-3 text-sm leading-6 text-muted-foreground">Itemized means individual donors who gave more than $200 to the campaign in the cycle; campaigns must report their name and address. Unitemized donor location is unknown.</p></section>
+        <section><h2 className="font-serif text-2xl font-bold">Context</h2><p className="mt-3 text-sm leading-6 text-muted-foreground">Giving to candidates in other states is legal and common. These figures describe where reported contributions came from; they do not evaluate candidates or donors.</p></section>
+        <section><h2 className="font-serif text-2xl font-bold">Source</h2><p className="mt-3 text-sm leading-6 text-muted-foreground">All figures come live from the Federal Election Commission's OpenFEC API, covering the 2023–24 two-year period, and are cached in your browser for 24 hours. If a figure is missing, it is shown as "data unavailable".</p></section>
+        <section><h2 className="font-serif text-2xl font-bold">Credits</h2><p className="mt-3 text-sm leading-6 text-muted-foreground">Data courtesy of the U.S. Federal Election Commission (FEC). Built with support from the GW Open Source Program Office (GW OSPO).</p></section>
       </div>
     </main>
   );

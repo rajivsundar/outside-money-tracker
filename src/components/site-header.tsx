@@ -14,9 +14,12 @@ export function SiteHeader() {
           </span>
           <span className="font-serif text-xl font-bold">Outside Money</span>
         </Link>
-        <nav aria-label="Primary navigation" className="flex items-center gap-5">
+        <nav aria-label="Primary navigation" className="flex items-center gap-4 sm:gap-5">
           <Link to="/" className={navClass} activeProps={{ className: "border-primary text-foreground" }} activeOptions={{ exact: true }}>
             Races
+          </Link>
+          <Link to="/leaderboard" className={navClass} activeProps={{ className: "border-primary text-foreground" }}>
+            Leaderboard
           </Link>
           <Link to="/methodology" className={navClass} activeProps={{ className: "border-primary text-foreground" }}>
             Methodology
