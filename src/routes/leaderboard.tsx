@@ -33,8 +33,7 @@ function Leaderboard() {
     try {
       const cands: CandidateSummary[] = await qc.fetchQuery(candidatesQuery);
       setProgress({ done: 0, total: cands.length });
-      for (let i = 0; i < cands.length; i++) {
-        const c = cands[i];
+      for (const [i, c] of cands.entries()) {
         try {
           const d = await qc.fetchQuery({ queryKey: ["fec-detail", c.id], queryFn: () => fetchCandidateDetail(c.id, c.state), staleTime: Infinity, retry: 0 });
           setRows((r): Row[] => [...r, { ...c, outShare: d.outShare, itemized: d.itemized }]);

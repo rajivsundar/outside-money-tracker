@@ -110,5 +110,5 @@ export async function fetchCandidateDetail(id: string, raceState: string): Promi
 function titleName(raw: string) {
   const [last, first] = raw.split(",").map((s) => s.trim());
   const cap = (s: string) => s.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()).replace(/\s+/g, " ");
-  return first ? `${cap(first)} ${cap(last)}` : cap(raw);
+  return first && last ? `${cap(first)} ${cap(last)}` : cap(raw);
 }
