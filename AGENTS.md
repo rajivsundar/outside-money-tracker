@@ -14,3 +14,4 @@
 - FEC responses are cached in the user's external Supabase table fec_cache (browser client in src/lib/supabase.ts, 3s timeout, silent fallback) before localStorage, because Lovable Cloud must stay disabled.
 - Senate and House share one results layer (src/lib/results.ts) parameterized by chamber, so tables differ only by name (senate_* vs house_*) and compute_status tracks per-state progress.
 - The landing map uses pre-projected us-atlas topology rendered as inline SVG (no tiles/keys); missing data is always hatched, never coloured as 0%.
+- Top out-of-state organizations per race live in src/lib/orgs.ts (FEC Schedule A lines 11B/11C, saved to race_top_orgs; Senate uses district '00'), computed on demand or by /admin/prefill, because they cost several FEC calls per candidate.

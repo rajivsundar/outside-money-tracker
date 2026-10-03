@@ -90,7 +90,7 @@ function TopDistrictsPage() {
       <p className="mt-3 max-w-2xl text-sm text-muted-foreground">Districts ranked by out-of-state share of itemized individual dollars, pooled across all of each district's candidates. Districts under $100,000 in itemized individual dollars are excluded.</p>
       <div className="mt-5 flex flex-wrap items-end gap-3">
         {view !== "all" && <div className="w-full max-w-md"><CycleSelect value={cycle} onChange={(c) => navigate({ to: "/top-districts", search: { cycle: c } })} /></div>}
-        <Button variant="outline" size="sm" onClick={() => navigate({ to: "/top-districts", search: { cycle, view: view === "all" ? undefined : "all" } })}>{view === "all" ? "Single cycle" : "All cycles"}</Button>
+        <Button variant="outline" size="sm" onClick={() => navigate({ to: "/top-districts", search: view === "all" ? { cycle } : { cycle, view: "all" as const } })}>{view === "all" ? "Single cycle" : "All cycles"}</Button>
       </div>
       {view === "all" ? (
         <div className="mt-8 space-y-10">{[...CYCLES].reverse().map((c) => <CycleBlock key={c} cycle={c} />)}</div>
