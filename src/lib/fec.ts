@@ -4,7 +4,7 @@ import type { Categories } from "@/components/finance";
 import { recordDiag, setSharedCacheOnline, supabase, withTimeout } from "@/lib/supabase";
 import { useSyncExternalStore } from "react";
 
-const GAP = 3800; // target ≤950 FEC calls per rolling hour
+const GAP = 250; // spacing between uncached calls; HOUR_CAP protects the key
 const HOUR_CAP = 950;
 const PAUSE_429 = 10 * 60 * 1000;
 let queue: Promise<unknown> = Promise.resolve();
