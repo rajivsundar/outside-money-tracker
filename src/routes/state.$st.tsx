@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { CategoryLegend, ChamberToggle, CycleSelect, RaceLink, ShareLegend, shareColor } from "@/components/finance";
+import { TopOrgs } from "@/components/top-orgs";
 import { CandidateBlock } from "@/components/candidate-block";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -72,6 +73,7 @@ function SenateSection({ code, cycle, compact = false }: { code: string; cycle: 
       ) : <>
         <div className="mb-8"><CategoryLegend /></div>
         <div className="space-y-12">{race.candidates.map((c) => <CandidateBlock key={`${cycle}-${c.id}`} c={c} cycle={cycle} />)}</div>
+        <TopOrgs chamber="senate" cycle={cycle} state={code} district="00" cands={race.candidates} />
       </>)}
     </section>
   );
