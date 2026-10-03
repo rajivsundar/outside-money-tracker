@@ -17,7 +17,7 @@ export const Route = createFileRoute("/leaderboard")({
     { property: "og:type", content: "website" },
     { name: "twitter:card", content: "summary_large_image" },
   ] }),
-  validateSearch: (s: Record<string, unknown>) => ({ cycle: parseCycle(s.cycle) }),
+  validateSearch: (s: Record<string, unknown>) => ({ cycle: parseCycle(s["cycle"]) }),
   component: Leaderboard,
 });
 

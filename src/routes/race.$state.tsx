@@ -19,7 +19,7 @@ export const Route = createFileRoute("/race/$state")({
       { name: "twitter:card", content: "summary_large_image" },
     ] };
   },
-  validateSearch: (s: Record<string, unknown>) => ({ cycle: parseCycle(s.cycle) }),
+  validateSearch: (s: Record<string, unknown>) => ({ cycle: parseCycle(s["cycle"]) }),
   component: RacePage,
 });
 

@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as LeaderboardRouteImport } from './routes/leaderboard'
 import { Route as MethodologyRouteImport } from './routes/methodology'
+import { Route as TrendsRouteImport } from './routes/trends'
 import { Route as RaceStateRouteImport } from './routes/race.$state'
 
 const IndexRoute = IndexRouteImport.update({
@@ -29,6 +30,11 @@ const MethodologyRoute = MethodologyRouteImport.update({
   path: '/methodology',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TrendsRoute = TrendsRouteImport.update({
+  id: '/trends',
+  path: '/trends',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RaceStateRoute = RaceStateRouteImport.update({
   id: '/race/$state',
   path: '/race/$state',
@@ -39,12 +45,14 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/leaderboard': typeof LeaderboardRoute
   '/methodology': typeof MethodologyRoute
+  '/trends': typeof TrendsRoute
   '/race/$state': typeof RaceStateRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/leaderboard': typeof LeaderboardRoute
   '/methodology': typeof MethodologyRoute
+  '/trends': typeof TrendsRoute
   '/race/$state': typeof RaceStateRoute
 }
 export interface FileRoutesById {
@@ -52,20 +60,28 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/leaderboard': typeof LeaderboardRoute
   '/methodology': typeof MethodologyRoute
+  '/trends': typeof TrendsRoute
   '/race/$state': typeof RaceStateRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/leaderboard' | '/methodology' | '/race/$state'
+  fullPaths: '/' | '/leaderboard' | '/methodology' | '/trends' | '/race/$state'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/leaderboard' | '/methodology' | '/race/$state'
-  id: '__root__' | '/' | '/leaderboard' | '/methodology' | '/race/$state'
+  to: '/' | '/leaderboard' | '/methodology' | '/trends' | '/race/$state'
+  id:
+    | '__root__'
+    | '/'
+    | '/leaderboard'
+    | '/methodology'
+    | '/trends'
+    | '/race/$state'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LeaderboardRoute: typeof LeaderboardRoute
   MethodologyRoute: typeof MethodologyRoute
+  TrendsRoute: typeof TrendsRoute
   RaceStateRoute: typeof RaceStateRoute
 }
 
@@ -92,6 +108,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MethodologyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/trends': {
+      id: '/trends'
+      path: '/trends'
+      fullPath: '/trends'
+      preLoaderRoute: typeof TrendsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/race/$state': {
       id: '/race/$state'
       path: '/race/$state'
@@ -106,6 +129,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LeaderboardRoute: LeaderboardRoute,
   MethodologyRoute: MethodologyRoute,
+  TrendsRoute: TrendsRoute,
   RaceStateRoute: RaceStateRoute,
 }
 export const routeTree = rootRouteImport
