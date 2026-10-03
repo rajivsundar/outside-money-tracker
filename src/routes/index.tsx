@@ -5,7 +5,7 @@ import { ChamberToggle, CycleSelect, ShareLegend, formatMoney } from "@/componen
 import { UsMap, describe, type StateStatus } from "@/components/us-map";
 import { IN_PROGRESS_CYCLE, STATES, chamberName, cycleLabel, parseChamber, parseCycleOr } from "@/config";
 import { candidatesQuery, groupRaces } from "@/lib/fec";
-import { groupMedians, readComputed } from "@/lib/results";
+import { groupMedians, readCompleteStates, readComputed } from "@/lib/results";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -27,6 +27,7 @@ function HomePage() {
   const { cycle, chamber } = Route.useSearch();
   const senate = useQuery({ ...candidatesQuery(cycle), enabled: chamber === "senate" });
   const computed = useQuery({ queryKey: ["computed", chamber, cycle], queryFn: () => readComputed(chamber, cycle), staleTime: 30_000 });
+  const coverage = useQuery({ queryKey: ["coverage", chamber, cycle], queryFn: () => readCompleteStates(chamber, cycle), staleTime: 30_000 });
   const races = senate.data ? groupRaces(senate.data, cycle) : [];
   const medians = groupMedians(computed.data ?? [], (r) => r.state);
   const noneLabel = `No Senate race in ${cycle}`;
@@ -57,6 +58,7 @@ function HomePage() {
         <div className="rounded-none bg-card px-2 py-4 sm:rounded-md sm:border sm:border-border sm:px-6">
           <UsMap statuses={statuses} noneLabel={noneLabel} onSelect={go} />
           <div className="mt-4 px-2"><ShareLegend noRaceLabel={chamber === "senate" ? noneLabel : undefined} /></div>
+          {coverage.data && (chamber === "house" || senate.data) && <p className="mt-3 px-2 text-xs text-muted-foreground">Data coverage: {chamber === "house" ? coverage.data.size : races.filter((r) => coverage.data!.has(r.state)).length} of {chamber === "house" ? Object.keys(STATES).length : races.length} states loaded</p>}
           {computed.data === null && <p className="mt-3 px-2 text-xs text-muted-foreground">Saved results couldn't be reached; states show as not computed yet.</p>}
         </div>
       </section>
