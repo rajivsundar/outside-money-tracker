@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { STATES, type Chamber } from "@/config";
+import { CYCLES, STATES, type Chamber } from "@/config";
 import { detailQuery, fetchCandidates, useFecStatus, type CandidateSummary } from "@/lib/fec";
 import { loadOrComputeTopOrgs } from "@/lib/orgs";
 import { readCompleteStates, readComputed, updateComputeStatus } from "@/lib/results";
@@ -32,6 +32,10 @@ function PrefillPage() {
   const [priority, setPriority] = useState("MD, VA, PA, TX, CA");
   const [state, setState] = useState<"idle" | "running" | "paused" | "done">("idle");
   const [other, setOther] = useState(false);
+  const [onlyCh, setOnlyCh] = useState<Chamber>("senate");
+  const [onlyCycle, setOnlyCycle] = useState(2026);
+  const [fullQueue, setFullQueue] = useState(false);
+  const [skipOrgs, setSkipOrgs] = useState(true);
   const [prog, setProg] = useState<Record<string, Prog>>({});
   const [current, setCurrent] = useState("");
   const [log, setLog] = useState<string[]>([]);
@@ -78,7 +82,8 @@ function PrefillPage() {
     const pri = priority.split(/[\s,]+/).map((s) => s.trim().toUpperCase()).filter((s) => ALL.includes(s));
     const houseOrder = [...new Set([...pri, ...ALL])];
     try {
-      for (const [cycle, ch] of PLAN) {
+      const plan: [number, Chamber][] = fullQueue ? PLAN : [[onlyCycle, onlyCh]];
+      for (const [cycle, ch] of plan) {
         const k = key(cycle, ch);
         const complete = (await readCompleteStates(ch, cycle)) ?? new Set<string>();
         let bySt: Map<string, CandidateSummary[]> | null = null;
@@ -114,7 +119,7 @@ function PrefillPage() {
           }
           const races = new Map<string, CandidateSummary[]>();
           for (const c of list) { const d = ch === "senate" ? "00" : c.district ?? "00"; races.set(d, [...(races.get(d) ?? []), c]); }
-          for (const [d, cs] of races) {
+          if (!skipOrgs) for (const [d, cs] of races) {
             await gate();
             setCurrent(`${cycle} ${ch} · ${st}${ch === "house" ? `-${d}` : ""} · top organizations`);
             try { const r = await loadOrComputeTopOrgs(ch, cycle, st, d, cs); add(`Top organizations ${st}${ch === "house" ? `-${d}` : ""}: ${r.length} saved`); }
@@ -127,7 +132,7 @@ function PrefillPage() {
         }
         add(`Finished ${cycle} ${ch}`);
       }
-      setState("done"); setCurrent("All cycles complete");
+      setState("done"); setCurrent(fullQueue ? "All cycles complete" : `${onlyCycle} ${onlyCh} complete`);
     } catch (e) { add(`Stopped: ${(e as Error).message}`); setState("idle"); }
     finally { running.current = false; chan.current?.postMessage("stopped"); try { await lock?.release(); } catch { /* ignore */ } }
   }
@@ -141,6 +146,21 @@ function PrefillPage() {
     return left === 0 ? "done" : min < 60 ? `~${min} min` : `~${(min / 60).toFixed(1)} h`;
   };
 
+  const activePlan: [number, Chamber][] = fullQueue ? PLAN : [[onlyCycle, onlyCh]];
+  const totalEta = (() => {
+    let left = 0; let known = true;
+    for (const [c, ch] of activePlan) {
+      const p = prog[key(c, ch)];
+      if (!p || p.statesTotal === null) { known = false; continue; }
+      const avg = p.statesDone > 0 && p.candsTotal > 0 ? p.candsTotal / Math.max(1, p.statesDone) : 4;
+      left += Math.max(0, p.candsTotal - p.candsDone) + avg * Math.max(0, p.statesTotal - p.statesDone);
+    }
+    if (!known && left === 0) return "—";
+    const min = Math.round((left * rate) / 60000);
+    return `${min < 60 ? `~${min} min` : `~${(min / 60).toFixed(1)} h`}${known ? "" : " (so far; more chamber-cycles not yet counted)"}`;
+  })();
+  const locked = state === "running" || state === "paused";
+
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
       <p className="section-kicker">Admin</p>
@@ -150,6 +170,20 @@ function PrefillPage() {
       <label className="mb-4 block text-sm font-semibold">Priority states (House)
         <input value={priority} onChange={(e) => setPriority(e.target.value)} disabled={state === "running" || state === "paused"} className="mt-1 block w-full rounded-md border border-border bg-card px-3 py-2 font-mono text-sm" />
       </label>
+
+      <fieldset className="mb-4 grid gap-3 rounded-md border border-border p-3 text-sm" disabled={locked}>
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="font-semibold">Run only</span>
+          <select value={onlyCh} onChange={(e) => setOnlyCh(e.target.value as Chamber)} disabled={fullQueue} className="rounded-md border border-border bg-card px-2 py-1">
+            <option value="senate">Senate</option><option value="house">House</option>
+          </select>
+          <select value={onlyCycle} onChange={(e) => setOnlyCycle(Number(e.target.value))} disabled={fullQueue} className="rounded-md border border-border bg-card px-2 py-1">
+            {[...CYCLES].reverse().map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <label className="flex items-center gap-2"><input type="checkbox" checked={fullQueue} onChange={(e) => setFullQueue(e.target.checked)} /> Run full queue instead</label>
+        </div>
+        <label className="flex items-center gap-2"><input type="checkbox" checked={skipOrgs} onChange={(e) => setSkipOrgs(e.target.checked)} /> Skip top organizations (faster)</label>
+      </fieldset>
 
       {other && state === "idle" && <p className="mb-4 rounded-md border border-border bg-muted p-3 text-sm font-semibold">Prefill already running in another tab</p>}
       <div className="mb-6 flex gap-3">
@@ -162,6 +196,7 @@ function PrefillPage() {
         <p>Status: <strong>{state}</strong>{wake && <span className="text-muted-foreground"> · {wake}</span>}</p>
         <p>Current: {current || "—"}</p>
         <p>FEC calls used this hour (this tab): <strong className="font-mono">{fec.usedHour}</strong> / 950 · X-RateLimit-Remaining: <strong className="font-mono">{fec.remaining ?? "not yet known"}</strong></p>
+        <p>Estimated time left: <strong className="font-mono">{totalEta}</strong></p>
         {fec.paused && <p className="font-semibold">FEC hourly limit reached — resuming automatically</p>}
       </div>
 
