@@ -119,3 +119,10 @@ export function groupMedians(rows: ShareRow[], key: (r: ShareRow) => string | nu
   }
   return new Map([...counts.keys()].map((k) => [k, { median: median(by.get(k) ?? []), count: counts.get(k)! }]));
 }
+
+/** States marked complete in compute_status for a chamber + cycle; null when unreachable. */
+export async function readCompleteStates(chamber: Chamber, cycle: number): Promise<Set<string> | null> {
+  const rows = await safe<any[]>("compute_status read", supabase.from("compute_status").select("state, completed_at").eq("chamber", chamber).eq("cycle", cycle));
+  if (!rows) return null;
+  return new Set(rows.filter((r) => r.completed_at).map((r) => String(r.state).trim()));
+}
