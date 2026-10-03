@@ -95,17 +95,17 @@ export async function updateComputeStatus(chamber: Chamber, cycle: number, state
   if (r) recordDiag({ written: 1 });
 }
 
-export type ShareRow = { cand_id: string; name: string; party: string; state: string; district: string | null; itemized: number | null; share: number | null };
+export type ShareRow = { cand_id: string; name: string; party: string; state: string; district: string | null; itemized: number | null; outState: number | null; share: number | null };
 /** All computed candidates for a chamber + cycle; null when the tables can't be reached. */
 export async function readComputed(chamber: Chamber, cycle: number, state?: string): Promise<ShareRow[] | null> {
   const t = T(chamber);
-  const cols = chamber === "house" ? "cand_id,name,party,state,district,itemized_indiv,out_of_state_share" : "cand_id,name,party,state,itemized_indiv,out_of_state_share";
+  const cols = chamber === "house" ? "cand_id,name,party,state,district,itemized_indiv,out_of_state,out_of_state_share" : "cand_id,name,party,state,itemized_indiv,out_of_state,out_of_state_share";
   let q = supabase.from(t.res).select(cols).eq("cycle", cycle).limit(5000);
   if (state) q = q.eq("state", state);
   const rows = await safe<any[]>(`${t.res} read`, q);
   if (!rows) return null;
   recordDiag({ read: rows.length });
-  return rows.map((r) => ({ cand_id: r.cand_id, name: r.name, party: r.party ?? "", state: String(r.state).trim(), district: r.district ? String(r.district).trim() : null, itemized: n(r.itemized_indiv), share: n(r.out_of_state_share) }));
+  return rows.map((r) => ({ cand_id: r.cand_id, name: r.name, party: r.party ?? "", state: String(r.state).trim(), district: r.district ? String(r.district).trim() : null, itemized: n(r.itemized_indiv), outState: n(r.out_of_state), share: n(r.out_of_state_share) }));
 }
 
 export type Group = { median: number | null; count: number };

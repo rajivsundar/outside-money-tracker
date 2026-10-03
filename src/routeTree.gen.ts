@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as LeaderboardRouteImport } from './routes/leaderboard'
 import { Route as MethodologyRouteImport } from './routes/methodology'
+import { Route as TopDistrictsRouteImport } from './routes/top-districts'
 import { Route as TrendsRouteImport } from './routes/trends'
 import { Route as AdminPrefillRouteImport } from './routes/admin.prefill'
 import { Route as RaceStateRouteImport } from './routes/race.$state'
@@ -31,6 +32,11 @@ const LeaderboardRoute = LeaderboardRouteImport.update({
 const MethodologyRoute = MethodologyRouteImport.update({
   id: '/methodology',
   path: '/methodology',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TopDistrictsRoute = TopDistrictsRouteImport.update({
+  id: '/top-districts',
+  path: '/top-districts',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TrendsRoute = TrendsRouteImport.update({
@@ -63,6 +69,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/leaderboard': typeof LeaderboardRoute
   '/methodology': typeof MethodologyRoute
+  '/top-districts': typeof TopDistrictsRoute
   '/trends': typeof TrendsRoute
   '/admin/prefill': typeof AdminPrefillRoute
   '/race/$state': typeof RaceStateRoute
@@ -73,6 +80,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/leaderboard': typeof LeaderboardRoute
   '/methodology': typeof MethodologyRoute
+  '/top-districts': typeof TopDistrictsRoute
   '/trends': typeof TrendsRoute
   '/admin/prefill': typeof AdminPrefillRoute
   '/race/$state': typeof RaceStateRoute
@@ -84,6 +92,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/leaderboard': typeof LeaderboardRoute
   '/methodology': typeof MethodologyRoute
+  '/top-districts': typeof TopDistrictsRoute
   '/trends': typeof TrendsRoute
   '/admin/prefill': typeof AdminPrefillRoute
   '/race/$state': typeof RaceStateRoute
@@ -96,6 +105,7 @@ export interface FileRouteTypes {
     | '/'
     | '/leaderboard'
     | '/methodology'
+    | '/top-districts'
     | '/trends'
     | '/admin/prefill'
     | '/race/$state'
@@ -106,6 +116,7 @@ export interface FileRouteTypes {
     | '/'
     | '/leaderboard'
     | '/methodology'
+    | '/top-districts'
     | '/trends'
     | '/admin/prefill'
     | '/race/$state'
@@ -116,6 +127,7 @@ export interface FileRouteTypes {
     | '/'
     | '/leaderboard'
     | '/methodology'
+    | '/top-districts'
     | '/trends'
     | '/admin/prefill'
     | '/race/$state'
@@ -127,6 +139,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LeaderboardRoute: typeof LeaderboardRoute
   MethodologyRoute: typeof MethodologyRoute
+  TopDistrictsRoute: typeof TopDistrictsRoute
   TrendsRoute: typeof TrendsRoute
   AdminPrefillRoute: typeof AdminPrefillRoute
   RaceStateRoute: typeof RaceStateRoute
@@ -155,6 +168,13 @@ declare module '@tanstack/react-router' {
       path: '/methodology'
       fullPath: '/methodology'
       preLoaderRoute: typeof MethodologyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/top-districts': {
+      id: '/top-districts'
+      path: '/top-districts'
+      fullPath: '/top-districts'
+      preLoaderRoute: typeof TopDistrictsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/trends': {
@@ -199,6 +219,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LeaderboardRoute: LeaderboardRoute,
   MethodologyRoute: MethodologyRoute,
+  TopDistrictsRoute: TopDistrictsRoute,
   TrendsRoute: TrendsRoute,
   AdminPrefillRoute: AdminPrefillRoute,
   RaceStateRoute: RaceStateRoute,

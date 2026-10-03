@@ -3,6 +3,7 @@ import { cycleLabel, parseCycle } from "@/config";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import { CategoryLegend, CycleSelect, formatMoney } from "@/components/finance";
+import { TopOrgs } from "@/components/top-orgs";
 import { CandidateBlock } from "@/components/candidate-block";
 import { candidatesQuery, groupRaces } from "@/lib/fec";
 
@@ -55,6 +56,7 @@ function RacePage() {
             <div className="mt-5"><CategoryLegend /></div>
           </div>
           <div className="space-y-12">{race.candidates.map((c) => <CandidateBlock key={`${cycle}-${c.id}`} c={c} cycle={cycle} />)}</div>
+          <TopOrgs chamber="senate" cycle={cycle} state={code} district="00" cands={race.candidates} />
         </>}
       </section>
     </main>
