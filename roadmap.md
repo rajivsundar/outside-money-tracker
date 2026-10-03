@@ -1,2 +1,3 @@
 - [x] Switch to live FEC data
-- [ ] Enable Supabase — blocked: Lovable Cloud disabled for user; conflicts with project hard rules
+- [x] Shared cache via external Supabase fec_cache
+- [x] Cycles 2016–2026, special elections, rate limiting, Trends page
