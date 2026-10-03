@@ -1,3 +1,4 @@
 - [x] Switch to live FEC data
 - [x] Shared cache via external Supabase fec_cache
 - [x] Cycles 2016–2026, special elections, rate limiting, Trends page
+- [x] House races, landing map, state/district pages (Part A–C)

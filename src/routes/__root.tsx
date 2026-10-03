@@ -25,7 +25,7 @@ function NotFoundComponent() {
         </p>
         <div className="mt-6">
           <Link
-            to="/" search={{ cycle: 2024 }}
+            to="/" search={{ cycle: 2026, chamber: "senate" }}
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
             Go home
@@ -128,7 +128,7 @@ function RootComponent() {
         <Outlet />
         <footer className="border-t border-border bg-surface py-8">
           <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
-            <p>Outside Money · U.S. Senate finance explorer, 2016–2026</p>
+            <p>Outside Money · U.S. Congress finance explorer, 2016–2026</p>
             <p>Data: Federal Election Commission (OpenFEC API) · Not affiliated with the FEC</p>
           </div>
         </footer>

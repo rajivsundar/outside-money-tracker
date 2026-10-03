@@ -2,23 +2,25 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { SUPABASE_PROJECT_REF, SUPABASE_URL, pingSharedCache, testWrite, useDiagnostics, useSharedCacheStatus } from "@/lib/supabase";
-import { updateCycleStatus } from "@/lib/results";
+import { readComputed, updateCycleStatus } from "@/lib/results";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { CycleSelect, RaceLink, formatMoney } from "@/components/finance";
-import { cycleLabel, parseCycle } from "@/config";
+import { ChamberToggle, CycleSelect, RaceLink, formatMoney } from "@/components/finance";
+import { STATE_NAME, cycleLabel, parseChamber, parseCycle } from "@/config";
+import { Link } from "@tanstack/react-router";
 import { candidatesQuery, detailQuery, saveCycleSummary, useFecStatus, type CandidateSummary } from "@/lib/fec";
 
 export const Route = createFileRoute("/leaderboard")({
   head: () => ({ meta: [
     { title: "Leaderboard — Outside Money" },
-    { name: "description", content: "U.S. Senate candidates ranked by out-of-state share of itemized individual dollars, by cycle, from FEC data." },
+    { name: "description", content: "U.S. Senate and House candidates ranked by out-of-state share of itemized individual dollars, by cycle, from FEC data." },
     { property: "og:title", content: "Leaderboard — Outside Money" },
-    { property: "og:description", content: "U.S. Senate candidates ranked by out-of-state share of itemized individual dollars, 2016–2026." },
+    { property: "og:description", content: "U.S. Senate and House candidates ranked by out-of-state share of itemized individual dollars, 2016–2026." },
     { property: "og:type", content: "website" },
     { name: "twitter:card", content: "summary_large_image" },
   ] }),
-  validateSearch: (s: Record<string, unknown>) => ({ cycle: parseCycle(s["cycle"]) }),
+  validateSearch: (s: Record<string, unknown>) => ({ cycle: parseCycle(s["cycle"]), chamber: parseChamber(s["chamber"]) }),
   component: Leaderboard,
 });
 
@@ -31,7 +33,7 @@ function formatEta(ms: number) {
 }
 
 function Leaderboard() {
-  const { cycle } = Route.useSearch();
+  const { cycle, chamber } = Route.useSearch();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const shared = useSharedCacheStatus();
@@ -86,17 +88,20 @@ function Leaderboard() {
       <p className="section-kicker">Ranking</p>
       <h1 className="font-serif text-4xl font-bold sm:text-5xl">Leaderboard</h1>
       <p className="mt-4 max-w-2xl text-muted-foreground">Candidates ranked by out-of-state share of itemized individual dollars. Loading every candidate can take a while the first time; cached candidates load instantly.</p>
-      <div className="mt-6 max-w-md"><CycleSelect value={cycle} onChange={(c) => navigate({ to: "/leaderboard", search: { cycle: c } })} /></div>
+      <div className="mt-6 max-w-md"><CycleSelect value={cycle} onChange={(c) => navigate({ to: "/leaderboard", search: { cycle: c, chamber } })} /></div>
+      <div className="mt-4"><ChamberToggle value={chamber} onChange={(c) => navigate({ to: "/leaderboard", search: { cycle, chamber: c } })} /></div>
       <p className="mt-2 text-sm text-muted-foreground">{cycleLabel(cycle)}</p>
       <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 font-mono text-xs text-muted-foreground">
         <span className="inline-flex items-center gap-2"><span className={`size-2 rounded-full ${shared ? "bg-in-state" : "bg-unknown"}`} />Shared cache: {shared ? "on" : "off"}</span>
         <span>FEC calls remaining this hour: {fec.remaining ?? "not yet known"}</span>
       </div>
       {fec.paused && <p className="mt-4 rounded-sm border border-border bg-muted px-3 py-2 text-sm">FEC hourly limit reached — resuming automatically</p>}
+      {chamber === "house" ? <HouseBoard cycle={cycle} /> : <>
       <div className="mt-7 flex flex-col gap-4 sm:flex-row sm:items-center">
         <Button onClick={compute} disabled={running} size="lg">{running ? "Computing…" : `Compute all ${cycle} races`}</Button>
         {progress && <div className="flex-1"><Progress value={(progress.done / Math.max(1, progress.total)) * 100} /><p className="mt-1 text-xs text-muted-foreground">{progress.done} / {progress.total} candidates loaded{running && progress.eta !== null && progress.done < progress.total ? ` · ${formatEta(progress.eta)}` : ""}</p></div>}
       </div>
+      </>}
       <details className="mt-6 rounded-sm border border-border px-3 py-2 text-xs">
         <summary className="cursor-pointer font-semibold">Diagnostics</summary>
         <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 font-mono text-muted-foreground">
@@ -112,7 +117,7 @@ function Leaderboard() {
         </div>
       </details>
       {error && <p className="mt-6 text-muted-foreground">{error}</p>}
-      {sorted.length > 0 && (
+      {chamber === "senate" && sorted.length > 0 && (
         <ol className="mt-10 divide-y divide-border border-y border-border">
           {sorted.map((r, i) => (
             <li key={r.id} className="grid grid-cols-[2.5rem_1fr_auto] items-center gap-3 py-4">
@@ -127,5 +132,32 @@ function Leaderboard() {
         </ol>
       )}
     </main>
+  );
+}
+
+function HouseBoard({ cycle }: { cycle: number }) {
+  const { data, isLoading } = useQuery({ queryKey: ["computed", "house", cycle], queryFn: () => readComputed("house", cycle), staleTime: 30_000 });
+  const rows = [...(data ?? [])].sort((a, b) => (b.share ?? -1) - (a.share ?? -1));
+  const states = new Set(rows.map((r) => r.state)).size;
+  return (
+    <div className="mt-7">
+      <p className="text-sm text-muted-foreground">House candidates are computed state by state when someone opens a state on the map. {rows.length} candidates in {states} states computed so far for {cycle}.</p>
+      {isLoading && <p className="mt-4 text-muted-foreground">Loading saved results…</p>}
+      {data === null && <p className="mt-4 text-muted-foreground">Saved results couldn't be reached.</p>}
+      {rows.length > 0 && (
+        <ol className="mt-8 divide-y divide-border border-y border-border">
+          {rows.map((r, i) => (
+            <li key={r.cand_id} className="grid grid-cols-[2.5rem_1fr_auto] items-center gap-3 py-4">
+              <span className="font-mono text-sm text-subtle">{String(i + 1).padStart(2, "0")}</span>
+              <div>
+                <p className="font-semibold">{r.name} <span className="text-xs font-normal text-muted-foreground">{r.party} · {STATE_NAME[r.state] ?? r.state} {r.district === "00" || !r.district ? "At-large" : `District ${Number(r.district)}`}</span></p>
+                <p className="text-xs text-muted-foreground">{r.itemized === null ? "data unavailable" : formatMoney(r.itemized, true)} itemized individual dollars · <Link to="/house/$st/$district" params={{ st: r.state.toLowerCase(), district: r.district ?? "00" }} search={{ cycle }} className="font-semibold text-primary hover:underline">District</Link></p>
+              </div>
+              <p className="text-right font-mono text-xl font-bold text-out-state">{r.share == null ? <span className="text-sm font-normal text-muted-foreground">data unavailable</span> : `${r.share.toFixed(1)}%`}<span className="block font-sans text-[10px] font-normal text-muted-foreground">of itemized individual dollars</span></p>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
   );
 }
