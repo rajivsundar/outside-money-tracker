@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
+import type { ReactNode } from "react";
 
 export const categoryMeta = [
   { key: "inState", label: "In-state", className: "bg-in-state" },
@@ -60,7 +61,7 @@ export function ReceiptBar({ categories, label }: { categories: Categories; labe
   );
 }
 
-export function RaceLink({ code, children }: { code: string; children: React.ReactNode }) {
+export function RaceLink({ code, children }: { code: string; children: ReactNode }) {
   return (
     <Link
       to="/race/$state"
