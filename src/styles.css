@@ -19,6 +19,9 @@
  */
 
 @theme inline {
+  --font-sans: "Public Sans", "Helvetica Neue", sans-serif;
+  --font-serif: "Source Serif 4", Georgia, serif;
+  --font-mono: "IBM Plex Mono", monospace;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -59,27 +62,39 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-surface: var(--surface);
+  --color-subtle: var(--subtle);
+  --color-in-state: var(--in-state);
+  --color-out-state: var(--out-state);
+  --color-unknown: var(--unknown);
+  --color-pac: var(--pac);
+  --color-party: var(--party);
+  --color-other: var(--other);
+  --color-primary-surface: var(--primary-surface);
+  --color-primary-line: var(--primary-line);
+  --color-primary-subtle: var(--primary-subtle);
+  --color-primary-muted: var(--primary-muted);
 }
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.129 0.042 264.695);
+  --radius: 0.375rem;
+  --background: oklch(0.985 0.004 90);
+  --foreground: oklch(0.2522 0.0562 264);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.129 0.042 264.695);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.129 0.042 264.695);
-  --primary: oklch(0.208 0.042 265.755);
+  --primary: oklch(0.2522 0.0562 264);
   --primary-foreground: oklch(0.984 0.003 247.858);
   --secondary: oklch(0.968 0.007 247.896);
   --secondary-foreground: oklch(0.208 0.042 265.755);
-  --muted: oklch(0.968 0.007 247.896);
-  --muted-foreground: oklch(0.554 0.046 257.417);
+  --muted: oklch(0.94 0.006 264);
+  --muted-foreground: oklch(0.48 0.025 264);
   --accent: oklch(0.968 0.007 247.896);
   --accent-foreground: oklch(0.208 0.042 265.755);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(0.929 0.013 255.508);
+  --border: oklch(0.87 0.012 264);
   --input: oklch(0.929 0.013 255.508);
   --ring: oklch(0.704 0.04 256.788);
   --chart-1: oklch(0.646 0.222 41.116);
@@ -95,6 +110,18 @@
   --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
   --sidebar-border: oklch(0.929 0.013 255.508);
   --sidebar-ring: oklch(0.704 0.04 256.788);
+  --surface: oklch(0.965 0.006 90);
+  --subtle: oklch(0.62 0.02 264);
+  --in-state: oklch(0.5363 0.0854 214.32);
+  --out-state: oklch(0.681 0.1573 55.5);
+  --unknown: oklch(0.7975 0.0151 264.48);
+  --pac: oklch(0.5173 0.1045 294.12);
+  --party: oklch(0.6583 0.0883 120.51);
+  --other: oklch(0.5606 0.0849 52.4);
+  --primary-surface: oklch(0.31 0.055 264);
+  --primary-line: oklch(0.45 0.055 264);
+  --primary-subtle: oklch(0.86 0.02 264);
+  --primary-muted: oklch(0.74 0.045 205);
 }
 
 .dark {
@@ -140,5 +167,53 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+    font-family: var(--font-sans);
+    letter-spacing: 0;
+    margin: 0;
   }
+
+  ::selection {
+    background-color: var(--color-in-state);
+    color: var(--color-primary-foreground);
+  }
+}
+
+@layer components {
+  .section-kicker {
+    color: var(--color-in-state);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+  }
+
+  .section-title {
+    font-family: var(--font-serif);
+    font-size: 1.875rem;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+
+  .data-badge {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-muted-foreground);
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    padding: 0.3rem 0.5rem;
+    text-transform: uppercase;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  main > section { animation: reveal 420ms ease-out both; }
+  main > section:nth-child(2) { animation-delay: 80ms; }
+  main > section:nth-child(3) { animation-delay: 140ms; }
+}
+
+@keyframes reveal {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
