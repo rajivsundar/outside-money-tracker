@@ -3,7 +3,7 @@ import { useSyncExternalStore } from "react";
 
 // User's own external Supabase project (publishable key — safe in browser code).
 export const SUPABASE_URL = "https://qqpokmhvjfzlrhtumfgt.supabase.co";
-export const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_f03m_5mNaU7heNgYlcGg1Q_YJu12Ner";
+export const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_f03m_5mNaU7heNgYlcGg1Q_YJu12NEr";
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
