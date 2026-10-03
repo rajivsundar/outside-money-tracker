@@ -128,8 +128,8 @@ function RootComponent() {
         <Outlet />
         <footer className="border-t border-border bg-surface py-8">
           <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
-            <p>Outside Money · 2024 U.S. Senate finance explorer</p>
-            <p>Placeholder data for demonstration only</p>
+            <p>Outside Money · U.S. Senate finance explorer, 2016–2026</p>
+            <p>Data: U.S. Federal Election Commission (OpenFEC)</p>
           </div>
         </footer>
       </div>
