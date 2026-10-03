@@ -11,7 +11,8 @@ export const categoryMeta = [
   { key: "unknown", label: "Unknown small donors", className: "bg-unknown" },
   { key: "pacs", label: "PACs", className: "bg-pac" },
   { key: "party", label: "Party", className: "bg-party" },
-  { key: "other", label: "Self & other", className: "bg-other" },
+  { key: "self", label: "Self-funding", className: "bg-other" },
+  { key: "transfers", label: "Transfers & other", className: "bg-transfers" },
 ] as const;
 
 export type Categories = Record<(typeof categoryMeta)[number]["key"], number>;
@@ -38,7 +39,11 @@ export function CategoryLegend() {
   );
 }
 
+export const JFC_NOTE = "Money raised through joint fundraising committees arrives as transfers; its donors' locations are not counted here.";
+
 export function ReceiptBar({ categories, label }: { categories: Categories; label: string }) {
+  const total = categoryMeta.reduce((s, i) => s + categories[i.key], 0);
+  const scale = total > 100 ? 100 / total : 1;
   return (
     <div>
       <div className="flex h-9 w-full overflow-hidden rounded-sm" role="img" aria-label={label}>
@@ -46,7 +51,7 @@ export function ReceiptBar({ categories, label }: { categories: Categories; labe
           <div
             key={item.key}
             className={`${item.className} min-w-0`}
-            style={{ width: `${categories[item.key]}%` }}
+            style={{ width: `${categories[item.key] * scale}%` }}
             title={`${item.label}: ${categories[item.key].toFixed(1)}% of receipts`}
           />
         ))}
@@ -59,7 +64,7 @@ export function ReceiptBar({ categories, label }: { categories: Categories; labe
           </div>
         ))}
       </div>
-      <p className="mt-2 text-xs text-muted-foreground">Each percentage is of total receipts.</p>
+      <p className="mt-2 text-xs text-muted-foreground">Each percentage is of total receipts.{total > 100.5 && ` These categories add to ${total.toFixed(1)}% of receipts because the donor-state rows don't reconcile with the itemized total; the bar is drawn to fit.`} {JFC_NOTE}</p>
     </div>
   );
 }
