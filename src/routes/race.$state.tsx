@@ -31,7 +31,6 @@ export const Route = createFileRoute("/race/$state")({
 function RacePage() {
   const { race } = Route.useLoaderData();
   const outShare = (race.outOfStateItemized / race.itemizedIndividualTotal) * 100;
-+
   return (
     <main>
       <section className="border-b border-border bg-primary text-primary-foreground">
@@ -46,7 +45,6 @@ function RacePage() {
           </div>
         </div>
       </section>
-+
       <section className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
         <div className="mb-8 max-w-3xl">
           <p className="section-kicker">Receipt composition</p>
