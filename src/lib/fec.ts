@@ -4,22 +4,25 @@ import type { Categories } from "@/components/finance";
 import { recordDiag, setSharedCacheOnline, supabase, withTimeout } from "@/lib/supabase";
 import { useSyncExternalStore } from "react";
 
-const GAP = 4000; // 1,000 calls/hour limit → space uncached calls 4s apart
+const GAP = 3800; // target ≤950 FEC calls per rolling hour
+const HOUR_CAP = 950;
 const PAUSE_429 = 10 * 60 * 1000;
 let queue: Promise<unknown> = Promise.resolve();
 let lastCall = 0;
+const callTimes: number[] = [];
 
 export class DataUnavailable extends Error {}
 
 // ---- FEC rate status, observable from React ----
-type FecStatus = { paused: boolean; remaining: number | null };
-let status: FecStatus = { paused: false, remaining: null };
+type FecStatus = { paused: boolean; remaining: number | null; usedHour: number };
+let status: FecStatus = { paused: false, remaining: null, usedHour: 0 };
 const listeners = new Set<() => void>();
 function setStatus(p: Partial<FecStatus>) { status = { ...status, ...p }; listeners.forEach((l) => l()); }
-const initialStatus: FecStatus = { paused: false, remaining: null };
+const initialStatus: FecStatus = { paused: false, remaining: null, usedHour: 0 };
 export function useFecStatus() {
   return useSyncExternalStore((l) => { listeners.add(l); return () => listeners.delete(l); }, () => status, () => initialStatus);
 }
+function pruneCalls() { const cut = Date.now() - 3600_000; while (callTimes.length && callTimes[0]! < cut) callTimes.shift(); }
 
 // ---- Two-level cache (localStorage, then shared fec_cache) ----
 async function sharedGet(cacheKey: string, ttl: number): Promise<unknown | undefined> {
@@ -78,7 +81,11 @@ async function fecGet<T = any>(path: string, params: Record<string, string | num
     for (;;) {
       const wait = lastCall + GAP - Date.now();
       if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+      pruneCalls();
+      if (callTimes.length >= HOUR_CAP) { await new Promise((r) => setTimeout(r, callTimes[0]! + 3600_000 - Date.now() + 100)); continue; }
       lastCall = Date.now();
+      callTimes.push(lastCall);
+      setStatus({ usedHour: callTimes.length });
       const res = await fetch(url);
       const rem = res.headers.get("X-RateLimit-Remaining");
       if (rem !== null && !isNaN(Number(rem))) setStatus({ remaining: Number(rem) });
