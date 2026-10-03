@@ -1,6 +1,7 @@
+import { loadOrComputeDetail } from "@/lib/results";
 import { FEC_API_BASE, FEC_API_KEY, MIN_RECEIPTS, SPECIAL_ELECTIONS, ttlFor } from "@/config";
 import type { Categories } from "@/components/finance";
-import { setSharedCacheOnline, supabase, withTimeout } from "@/lib/supabase";
+import { recordDiag, setSharedCacheOnline, supabase, withTimeout } from "@/lib/supabase";
 import { useSyncExternalStore } from "react";
 
 const GAP = 4000; // 1,000 calls/hour limit → space uncached calls 4s apart
@@ -26,8 +27,9 @@ async function sharedGet(cacheKey: string, ttl: number): Promise<unknown | undef
     const { data, error } = await withTimeout(
       supabase.from("fec_cache").select("payload, fetched_at").eq("cache_key", cacheKey).maybeSingle(),
     );
-    if (error) { setSharedCacheOnline(false); return undefined; }
+    if (error) { setSharedCacheOnline(false); recordDiag({ error: error.message }); return undefined; }
     setSharedCacheOnline(true);
+    if (data) recordDiag({ read: 1 });
     if (data && Date.now() - new Date(data.fetched_at as string).getTime() < ttl) return data.payload;
   } catch { setSharedCacheOnline(false); }
   return undefined;
@@ -36,10 +38,11 @@ async function sharedGet(cacheKey: string, ttl: number): Promise<unknown | undef
 async function sharedPut(cacheKey: string, payload: unknown) {
   try {
     const { error } = await withTimeout(
-      supabase.from("fec_cache").upsert({ cache_key: cacheKey, payload, fetched_at: new Date().toISOString() }),
+      supabase.from("fec_cache").upsert({ cache_key: cacheKey, payload, fetched_at: new Date().toISOString() }, { onConflict: "cache_key" }),
     );
     setSharedCacheOnline(!error);
-  } catch { setSharedCacheOnline(false); }
+    recordDiag(error ? { error: error.message } : { written: 1 });
+  } catch (e) { setSharedCacheOnline(false); recordDiag({ error: (e as Error).message }); }
 }
 
 export async function cacheGet<T = unknown>(cacheKey: string, cycle: number): Promise<T | undefined> {
@@ -121,7 +124,7 @@ export const candidatesQuery = (cycle: number) => ({
   queryKey: ["fec-candidates", cycle], queryFn: () => fetchCandidates(cycle), staleTime: Infinity, retry: 1,
 });
 export const detailQuery = (c: CandidateSummary, cycle: number) => ({
-  queryKey: ["fec-detail", cycle, c.id], queryFn: () => fetchCandidateDetail(c.id, c.state, cycle), staleTime: Infinity, retry: 0,
+  queryKey: ["fec-detail", cycle, c.id], queryFn: () => loadOrComputeDetail(c, cycle), staleTime: Infinity, retry: 0,
 });
 
 export type Race = { state: string; stateName: string; total: number; special: boolean; candidates: CandidateSummary[] };
