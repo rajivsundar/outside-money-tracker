@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { STATES, type Chamber } from "@/config";
 import { detailQuery, fetchCandidates, useFecStatus, type CandidateSummary } from "@/lib/fec";
+import { loadOrComputeTopOrgs } from "@/lib/orgs";
 import { readCompleteStates, readComputed, updateComputeStatus } from "@/lib/results";
 
 export const Route = createFileRoute("/admin/prefill")({
@@ -110,6 +111,14 @@ function PrefillPage() {
             done++; doneThisRun.current++;
             setProg((s) => { const p = s[k]!; return { ...s, [k]: { ...p, candsDone: p.candsDone + 1 } }; });
             void updateComputeStatus(ch, cycle, st, list.length, done);
+          }
+          const races = new Map<string, CandidateSummary[]>();
+          for (const c of list) { const d = ch === "senate" ? "00" : c.district ?? "00"; races.set(d, [...(races.get(d) ?? []), c]); }
+          for (const [d, cs] of races) {
+            await gate();
+            setCurrent(`${cycle} ${ch} · ${st}${ch === "house" ? `-${d}` : ""} · top organizations`);
+            try { const r = await loadOrComputeTopOrgs(ch, cycle, st, d, cs); add(`Top organizations ${st}${ch === "house" ? `-${d}` : ""}: ${r.length} saved`); }
+            catch (e) { add(`Error top organizations ${st}-${d}: ${(e as Error).message}`); }
           }
           if (!list.length) void updateComputeStatus(ch, cycle, st, 0, 0);
           setProg((s) => { const p = s[k]!; return { ...s, [k]: { ...p, statesDone: p.statesDone + 1 } }; });

@@ -13,12 +13,12 @@ async function principalCommittee(id: string, cycle: number): Promise<string | n
 }
 
 type Rec = { cid: string; name: string; state: string; amt: number };
-async function orgReceipts(cmte: string, cycle: number): Promise<Rec[]> {
+async function orgReceipts(cmte: string, cycle: number, lineNo: string): Promise<Rec[]> {
   const out: Rec[] = [];
   let after: Record<string, string> = {};
   for (let page = 0; page < 5; page++) {
     const j = await fecGet<any>("/schedules/schedule_a/", {
-      committee_id: cmte, two_year_transaction_period: cycle, is_individual: "false", line_number: "F3-11B", per_page: 100,
+      committee_id: cmte, two_year_transaction_period: cycle, is_individual: "false", line_number: lineNo, per_page: 100,
       sort: "-contribution_receipt_amount", ...after,
     }, cycle);
     const rows: any[] = j?.results ?? [];
@@ -42,7 +42,7 @@ async function orgReceipts(cmte: string, cycle: number): Promise<Rec[]> {
 
 async function filtered(cmte: string, cycle: number) {
   // Line filter applied server-side too (keeps 5 pages focused on committee money).
-  return orgReceipts(cmte, cycle);
+  return [...await orgReceipts(cmte, cycle, "F3-11B"), ...await orgReceipts(cmte, cycle, "F3-11C")];
 }
 
 export async function computeTopOrgs(cands: CandidateSummary[], cycle: number, raceState: string): Promise<TopOrg[]> {
