@@ -1,7 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import { pingSharedCache, useSharedCacheStatus } from "@/lib/supabase";
+import { SUPABASE_PROJECT_REF, SUPABASE_URL, pingSharedCache, testWrite, useDiagnostics, useSharedCacheStatus } from "@/lib/supabase";
+import { updateCycleStatus } from "@/lib/results";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { CycleSelect, RaceLink, formatMoney } from "@/components/finance";
@@ -35,6 +36,8 @@ function Leaderboard() {
   const qc = useQueryClient();
   const shared = useSharedCacheStatus();
   const fec = useFecStatus();
+  const diag = useDiagnostics();
+  const [testMsg, setTestMsg] = useState<string | null>(null);
   useEffect(() => { void pingSharedCache(); }, []);
   const [rows, setRows] = useState<Row[]>([]);
   const [progress, setProgress] = useState<{ done: number; total: number; eta: number | null } | null>(null);
@@ -69,6 +72,7 @@ function Leaderboard() {
         const recent = durations.slice(-5);
         const avg = recent.reduce((s, x) => s + x, 0) / recent.length;
         setProgress({ done: i + 1, total: cands.length, eta: avg * (cands.length - i - 1) });
+        void updateCycleStatus(cycle, cands.length, i + 1);
       }
       saveCycleSummary({ cycle, computedAt: new Date().toISOString(), rows: results.map((r) => ({ id: r.id, outShare: r.outShare })) });
     } catch { setError("Data unavailable. The FEC service could not be reached."); }
@@ -93,6 +97,20 @@ function Leaderboard() {
         <Button onClick={compute} disabled={running} size="lg">{running ? "Computing…" : `Compute all ${cycle} races`}</Button>
         {progress && <div className="flex-1"><Progress value={(progress.done / Math.max(1, progress.total)) * 100} /><p className="mt-1 text-xs text-muted-foreground">{progress.done} / {progress.total} candidates loaded{running && progress.eta !== null && progress.done < progress.total ? ` · ${formatEta(progress.eta)}` : ""}</p></div>}
       </div>
+      <details className="mt-6 rounded-sm border border-border px-3 py-2 text-xs">
+        <summary className="cursor-pointer font-semibold">Diagnostics</summary>
+        <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 font-mono text-muted-foreground">
+          <dt>Supabase reachable</dt><dd>{shared === null ? "checking…" : shared ? "yes" : "no"}</dd>
+          <dt>Connected project ref</dt><dd>{SUPABASE_PROJECT_REF} <span className="text-subtle">({SUPABASE_URL})</span></dd>
+          <dt>Rows read</dt><dd>{diag.read}</dd>
+          <dt>Rows written</dt><dd>{diag.written}</dd>
+          <dt>Last error</dt><dd className="break-all">{diag.lastError ?? "none"}</dd>
+        </dl>
+        <div className="mt-3 flex items-center gap-3">
+          <Button size="sm" variant="outline" onClick={async () => { setTestMsg("Testing…"); const e = await testWrite(); setTestMsg(e ? `Write failed: ${e}` : "Write succeeded"); }}>Test write</Button>
+          {testMsg && <span className="text-muted-foreground">{testMsg}</span>}
+        </div>
+      </details>
       {error && <p className="mt-6 text-muted-foreground">{error}</p>}
       {sorted.length > 0 && (
         <ol className="mt-10 divide-y divide-border border-y border-border">

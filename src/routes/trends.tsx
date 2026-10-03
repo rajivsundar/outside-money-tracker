@@ -4,6 +4,7 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YA
 import { CYCLES, IN_PROGRESS_CYCLE, cycleLabel } from "@/config";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getCycleSummary, median } from "@/lib/fec";
+import { readCycleTrend } from "@/lib/results";
 
 export const Route = createFileRoute("/trends")({
   head: () => ({ meta: [
@@ -22,6 +23,8 @@ type Point = { cycle: number; median: number | null; n: number; computed: boolea
 async function loadTrends(): Promise<Point[]> {
   const out: Point[] = [];
   for (const cycle of CYCLES) {
+    const t = await readCycleTrend(cycle);
+    if (t?.complete) { out.push({ cycle, median: median(t.shares), n: t.shares.length, computed: true }); continue; }
     const s = await getCycleSummary(cycle);
     if (!s) { out.push({ cycle, median: null, n: 0, computed: false }); continue; }
     const shares = s.rows.map((r) => r.outShare).filter((x): x is number => x !== null);
@@ -38,7 +41,7 @@ function TrendsPage() {
       <p className="section-kicker">Over time</p>
       <h1 className="font-serif text-4xl font-bold sm:text-5xl">Trends</h1>
       <p className="mt-4 max-w-2xl text-muted-foreground">Median out-of-state share of itemized individual dollars across Senate candidates, for each fully computed cycle. Compute a cycle on the <Link to="/leaderboard" search={{ cycle: 2024 }} className="font-semibold text-primary hover:underline">Leaderboard</Link> to add it here.</p>
-      <p className="mt-3 max-w-2xl text-sm text-muted-foreground">Note: each cycle covers different Senate seats (one-third of the Senate is elected every two years).</p>
+      <p className="mt-3 max-w-2xl text-sm text-muted-foreground">Note: Each cycle covers different Senate seats (one-third of the Senate is elected every two years).</p>
       {isLoading && <p className="mt-8 text-muted-foreground">Checking computed cycles…</p>}
       {data && <>
         <div className="mt-10 h-72 w-full" role="img" aria-label="Line chart of median out-of-state share by cycle">
