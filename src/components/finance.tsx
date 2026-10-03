@@ -1,6 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import type { ReactNode } from "react";
+import { CYCLES, cycleLabel } from "@/config";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export const categoryMeta = [
   { key: "inState", label: "In-state", className: "bg-in-state" },
@@ -61,14 +63,31 @@ export function ReceiptBar({ categories, label }: { categories: Categories; labe
   );
 }
 
-export function RaceLink({ code, children }: { code: string; children: ReactNode }) {
+export function RaceLink({ code, cycle, children }: { code: string; cycle: number; children: ReactNode }) {
   return (
     <Link
       to="/race/$state"
       params={{ state: code.toLowerCase() }}
+      search={{ cycle }}
       className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline"
     >
       {children}<ArrowRight className="size-4" aria-hidden="true" />
     </Link>
+  );
+}
+
+export function CycleSelect({ value, onChange, dark = false }: { value: number; onChange: (c: number) => void; dark?: boolean }) {
+  return (
+    <div>
+      <label className="mb-2 block text-sm font-semibold" htmlFor="cycle-picker">Cycle</label>
+      <Select value={String(value)} onValueChange={(v) => onChange(Number(v))}>
+        <SelectTrigger id="cycle-picker" className={dark ? "h-12 border-primary-line bg-primary-surface px-4 text-primary-foreground shadow-none" : "h-11 px-4"}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {CYCLES.map((c) => <SelectItem key={c} value={String(c)}>{cycleLabel(c)}</SelectItem>)}
+        </SelectContent>
+      </Select>
+    </div>
   );
 }
