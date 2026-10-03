@@ -44,7 +44,7 @@ export function ReceiptBar({ categories, label }: { categories: Categories; labe
             key={item.key}
             className={`${item.className} min-w-0`}
             style={{ width: `${categories[item.key]}%` }}
-            title={`${item.label}: ${categories[item.key]}% of receipts`}
+            title={`${item.label}: ${categories[item.key].toFixed(1)}% of receipts`}
           />
         ))}
       </div>
@@ -52,7 +52,7 @@ export function ReceiptBar({ categories, label }: { categories: Categories; labe
         {categoryMeta.map((item) => (
           <div key={item.key} className="flex items-baseline justify-between gap-2 border-b border-border pb-1.5 text-sm">
             <span className="text-muted-foreground">{item.label}</span>
-            <span className="font-mono font-semibold tabular-nums">{categories[item.key]}%</span>
+            <span className="font-mono font-semibold tabular-nums">{categories[item.key].toFixed(1)}%</span>
           </div>
         ))}
       </div>

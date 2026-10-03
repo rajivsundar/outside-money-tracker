@@ -1,0 +1,2 @@
+- [x] Switch to live FEC data
+- [ ] Enable Supabase — blocked: Lovable Cloud disabled for user; conflicts with project hard rules
