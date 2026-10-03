@@ -11,3 +11,4 @@
 
 - All data is fetched from the public OpenFEC API directly in the browser via src/lib/fec.ts (localStorage cache, throttled), because the project intentionally has no backend.
 - Keep campaign-finance category metadata and formatting in shared presentation utilities so every route labels denominators consistently.
+- FEC responses are cached in the user's external Supabase table fec_cache (browser client in src/lib/supabase.ts, 3s timeout, silent fallback) before localStorage, because Lovable Cloud must stay disabled.

@@ -1,5 +1,6 @@
 import { CYCLE, FEC_API_BASE, FEC_API_KEY, MIN_RECEIPTS } from "@/config";
 import type { Categories } from "@/components/finance";
+import { setSharedCacheOnline, supabase, withTimeout } from "@/lib/supabase";
 
 const TTL = 24 * 60 * 60 * 1000;
 const GAP = 300;
@@ -8,10 +9,32 @@ let lastCall = 0;
 
 export class DataUnavailable extends Error {}
 
+async function sharedGet(cacheKey: string): Promise<unknown | undefined> {
+  try {
+    const { data, error } = await withTimeout(
+      supabase.from("fec_cache").select("payload, fetched_at").eq("cache_key", cacheKey).maybeSingle(),
+    );
+    if (error) { setSharedCacheOnline(false); return undefined; }
+    setSharedCacheOnline(true);
+    if (data && Date.now() - new Date(data.fetched_at as string).getTime() < TTL) return data.payload;
+  } catch { setSharedCacheOnline(false); }
+  return undefined;
+}
+
+async function sharedPut(cacheKey: string, payload: unknown) {
+  try {
+    const { error } = await withTimeout(
+      supabase.from("fec_cache").upsert({ cache_key: cacheKey, payload, fetched_at: new Date().toISOString() }),
+    );
+    setSharedCacheOnline(!error);
+  } catch { setSharedCacheOnline(false); }
+}
+
 async function fecGet<T = any>(path: string, params: Record<string, string | number>): Promise<T> {
-  const qs = new URLSearchParams({ ...Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])), api_key: FEC_API_KEY });
-  const url = `${FEC_API_BASE}${path}?${qs}`;
-  const key = `fec:${path}?${new URLSearchParams(Object.entries(params).map(([k, v]) => [k, String(v)]))}`;
+  const query = new URLSearchParams(Object.entries(params).map(([k, v]) => [k, String(v)])).toString();
+  const cacheKey = `${path}?${query}`; // request path + query, never the api_key
+  const url = `${FEC_API_BASE}${path}?${query}&api_key=${encodeURIComponent(FEC_API_KEY)}`;
+  const key = `fec:${cacheKey}`;
   try {
     const hit = localStorage.getItem(key);
     if (hit) {
@@ -19,6 +42,11 @@ async function fecGet<T = any>(path: string, params: Record<string, string | num
       if (Date.now() - t < TTL) return data;
     }
   } catch { /* ignore */ }
+  const shared = await sharedGet(cacheKey);
+  if (shared !== undefined) {
+    try { localStorage.setItem(key, JSON.stringify({ t: Date.now(), data: shared })); } catch { /* quota */ }
+    return shared as T;
+  }
   const run = queue.then(async () => {
     const wait = lastCall + GAP - Date.now();
     if (wait > 0) await new Promise((r) => setTimeout(r, wait));
@@ -30,6 +58,7 @@ async function fecGet<T = any>(path: string, params: Record<string, string | num
   queue = run.catch(() => undefined);
   const data = (await run) as T;
   try { localStorage.setItem(key, JSON.stringify({ t: Date.now(), data })); } catch { /* quota */ }
+  void sharedPut(cacheKey, data);
   return data;
 }
 
