@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { pingSharedCache, useSharedCacheStatus } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { RaceLink, formatMoney } from "@/components/finance";
@@ -23,6 +24,8 @@ type Row = CandidateSummary & { outShare: number | null; itemized: number };
 
 function Leaderboard() {
   const qc = useQueryClient();
+  const shared = useSharedCacheStatus();
+  useEffect(() => { void pingSharedCache(); }, []);
   const [rows, setRows] = useState<Row[]>([]);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [running, setRunning] = useState(false);
@@ -53,6 +56,7 @@ function Leaderboard() {
       <p className="section-kicker">Ranking</p>
       <h1 className="font-serif text-4xl font-bold sm:text-5xl">Leaderboard</h1>
       <p className="mt-4 max-w-2xl text-muted-foreground">Candidates ranked by out-of-state share of itemized individual dollars. Loading every candidate takes a few minutes the first time; results are cached for 24 hours.</p>
+      <p className="mt-3 inline-flex items-center gap-2 font-mono text-xs text-muted-foreground"><span className={`size-2 rounded-full ${shared ? "bg-in-state" : "bg-unknown"}`} />Shared cache: {shared ? "on" : "off"}</p>
       <div className="mt-7 flex flex-col gap-4 sm:flex-row sm:items-center">
         <Button onClick={compute} disabled={running} size="lg">{running ? "Computing…" : "Compute all races"}</Button>
         {progress && <div className="flex-1"><Progress value={(progress.done / Math.max(1, progress.total)) * 100} /><p className="mt-1 text-xs text-muted-foreground">{progress.done} of {progress.total} candidates loaded</p></div>}
