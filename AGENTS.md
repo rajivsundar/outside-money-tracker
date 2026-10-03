@@ -8,3 +8,6 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Keep the product fully static: all application data must be imported from the bundled Senate JSON file, because the project intentionally has no backend.
+- Keep campaign-finance category metadata and formatting in shared presentation utilities so every route labels denominators consistently.

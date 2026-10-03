@@ -1,0 +1,112 @@
+{
+  "cycle": 2024,
+  "updated": "October 3, 2026",
+  "isPlaceholder": true,
+  "states": [
+    {
+      "code": "AZ",
+      "name": "Arizona",
+      "raceTotal": 48200000,
+      "itemizedIndividualTotal": 27600000,
+      "outOfStateItemized": 18768000,
+      "candidates": [
+        {
+          "name": "Candidate A",
+          "partyLabel": "Democratic",
+          "receipts": 26700000,
+          "categories": { "inState": 18, "outOfState": 38, "unknown": 9, "pacs": 20, "party": 6, "other": 9 },
+          "topDonorStates": [
+            { "state": "California", "amount": 3610000, "share": 21.4 },
+            { "state": "New York", "amount": 2180000, "share": 12.9 },
+            { "state": "Arizona", "amount": 2040000, "share": 12.1 },
+            { "state": "Massachusetts", "amount": 980000, "share": 5.8 },
+            { "state": "Illinois", "amount": 760000, "share": 4.5 }
+          ]
+        },
+        {
+          "name": "Candidate B",
+          "partyLabel": "Republican",
+          "receipts": 21500000,
+          "categories": { "inState": 21, "outOfState": 31, "unknown": 11, "pacs": 15, "party": 8, "other": 14 },
+          "topDonorStates": [
+            { "state": "Arizona", "amount": 2380000, "share": 22.1 },
+            { "state": "Texas", "amount": 1690000, "share": 15.7 },
+            { "state": "Florida", "amount": 1040000, "share": 9.7 },
+            { "state": "California", "amount": 860000, "share": 8.0 },
+            { "state": "Virginia", "amount": 510000, "share": 4.7 }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "MT",
+      "name": "Montana",
+      "raceTotal": 39100000,
+      "itemizedIndividualTotal": 22400000,
+      "outOfStateItemized": 17248000,
+      "candidates": [
+        {
+          "name": "Candidate A",
+          "partyLabel": "Democratic",
+          "receipts": 21800000,
+          "categories": { "inState": 14, "outOfState": 44, "unknown": 8, "pacs": 19, "party": 5, "other": 10 },
+          "topDonorStates": [
+            { "state": "California", "amount": 2940000, "share": 22.8 },
+            { "state": "Montana", "amount": 1810000, "share": 14.0 },
+            { "state": "New York", "amount": 1470000, "share": 11.4 },
+            { "state": "Washington", "amount": 780000, "share": 6.0 },
+            { "state": "Colorado", "amount": 610000, "share": 4.7 }
+          ]
+        },
+        {
+          "name": "Candidate B",
+          "partyLabel": "Republican",
+          "receipts": 17300000,
+          "categories": { "inState": 18, "outOfState": 38, "unknown": 12, "pacs": 14, "party": 7, "other": 11 },
+          "topDonorStates": [
+            { "state": "Texas", "amount": 1920000, "share": 20.2 },
+            { "state": "Montana", "amount": 1680000, "share": 17.7 },
+            { "state": "Florida", "amount": 960000, "share": 10.1 },
+            { "state": "California", "amount": 710000, "share": 7.5 },
+            { "state": "Wyoming", "amount": 420000, "share": 4.4 }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "OH",
+      "name": "Ohio",
+      "raceTotal": 53700000,
+      "itemizedIndividualTotal": 31800000,
+      "outOfStateItemized": 19080000,
+      "candidates": [
+        {
+          "name": "Candidate A",
+          "partyLabel": "Democratic",
+          "receipts": 29600000,
+          "categories": { "inState": 23, "outOfState": 34, "unknown": 10, "pacs": 18, "party": 6, "other": 9 },
+          "topDonorStates": [
+            { "state": "Ohio", "amount": 3420000, "share": 24.1 },
+            { "state": "California", "amount": 2480000, "share": 17.5 },
+            { "state": "New York", "amount": 1210000, "share": 8.5 },
+            { "state": "Illinois", "amount": 740000, "share": 5.2 },
+            { "state": "Pennsylvania", "amount": 590000, "share": 4.2 }
+          ]
+        },
+        {
+          "name": "Candidate B",
+          "partyLabel": "Republican",
+          "receipts": 24100000,
+          "categories": { "inState": 20, "outOfState": 31, "unknown": 12, "pacs": 16, "party": 9, "other": 12 },
+          "topDonorStates": [
+            { "state": "Ohio", "amount": 2940000, "share": 21.6 },
+            { "state": "Texas", "amount": 1840000, "share": 13.5 },
+            { "state": "Florida", "amount": 1270000, "share": 9.3 },
+            { "state": "Virginia", "amount": 790000, "share": 5.8 },
+            { "state": "California", "amount": 720000, "share": 5.3 }
+          ]
+        }
+      ]
+    }
+  ]
+}
