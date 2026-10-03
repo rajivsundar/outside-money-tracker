@@ -14,12 +14,13 @@ export const Route = createFileRoute("/methodology")({
 });
 
 const definitions = [
-  ["In-state", "Itemized individual dollars whose donor address is in the race state. Calculated as the candidate's itemized individual total times the in-state fraction of FEC donor-state totals."],
-  ["Out-of-state", "Itemized individual dollars from every other state. Military addresses (AA, AE, AP), unknown (ZZ) and U.S. territories count as out-of-state."],
+  ["In-state", "Dollars in the race state's row of the principal campaign committee's FEC donor-state totals, used directly (no scaling)."],
+  ["Out-of-state", "The sum of every other donor-state row. Military addresses (AA, AE, AP), unknown (ZZ) and U.S. territories count as out-of-state."],
   ["Unknown small donors", "Unitemized individual contributions. Donors who give $200 or less in the cycle are not itemized, so their location is unknown."],
   ["PACs", "Contributions from other political committees (FEC: other_political_committee_contributions)."],
   ["Party", "Contributions from political party committees."],
-  ["Self & other", "Everything else in total receipts: candidate contributions and loans, transfers, refunds and other receipts."],
+  ["Self-funding", "Candidate contributions plus loans made by the candidate."],
+  ["Transfers & other", "Everything else in total receipts: transfers from joint fundraising and other authorized committees, offsets, refunds and other receipts. Money raised through joint fundraising committees arrives as transfers; its donors' locations are not counted here."],
 ];
 
 function MethodologyPage() {
@@ -40,6 +41,8 @@ function MethodologyPage() {
 
       <div className="mt-14 grid gap-10 border-t-2 border-foreground pt-8 sm:grid-cols-2">
         <section><h2 className="font-serif text-2xl font-bold">Denominators</h2><p className="mt-3 text-sm leading-6 text-muted-foreground">Receipt-bar percentages use total receipts for that candidate. Geographic shares use only itemized individual dollars, because those records contain donor location information. Every displayed percentage states which denominator it uses.</p></section>
+        <section><h2 className="font-serif text-2xl font-bold">Principal committee rule</h2><p className="mt-3 text-sm leading-6 text-muted-foreground">Every figure for a candidate comes from their principal campaign committee for the cycle (FEC designation P): receipts from that committee's totals, and donor states from that committee's Schedule A by-state totals. Joint fundraising and other committees are not added in. Geographic shares are the out-of-state rows divided by the sum of all donor-state rows.</p></section>
+        <section id="reconciliation"><h2 className="font-serif text-2xl font-bold">Reconciliation check</h2><p className="mt-3 text-sm leading-6 text-muted-foreground">For each candidate we compare the sum of donor-state rows with the committee's reported itemized individual contributions. If they differ by more than 5%, the candidate shows "Totals don't reconcile" and both numbers are listed. We don't hide or adjust the difference. One known cause: the FEC's by-state totals can include memo entries for donors whose gifts reached the campaign through joint fundraising transfers.</p></section>
         <section><h2 className="font-serif text-2xl font-bold">Itemized donors</h2><p className="mt-3 text-sm leading-6 text-muted-foreground">Itemized means individual donors who gave more than $200 to the campaign in the cycle; campaigns must report their name and address. Unitemized donor location is unknown.</p></section>
         <section><h2 className="font-serif text-2xl font-bold">Context</h2><p className="mt-3 text-sm leading-6 text-muted-foreground">Giving to candidates in other states is legal and common. These figures describe where reported contributions came from; they do not evaluate candidates or donors.</p></section>
         <section><h2 className="font-serif text-2xl font-bold">Cycles</h2><p className="mt-3 text-sm leading-6 text-muted-foreground">Each cycle is a two-year period ending in the even year shown (for example, 2020 covers January 2019 through December 2020). Cycles 2016 through 2026 are available. Each cycle covers different Senate seats, because one-third of the Senate is elected every two years. The 2026 cycle is in progress: its figures include data through the latest FEC filing and will change.</p></section>
