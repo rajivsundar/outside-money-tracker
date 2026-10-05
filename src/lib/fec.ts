@@ -12,7 +12,25 @@ let queue: Promise<unknown> = Promise.resolve();
 let lastCall = 0;
 const callTimes: number[] = [];
 
-export class DataUnavailable extends Error {}
+export class DataUnavailable extends Error {
+  /** HTTP status when the FEC request itself failed; undefined for "the data is not there" cases. */
+  constructor(message: string, readonly status?: number) { super(message); }
+}
+
+// ---- Optional run controls: the Node backfill job sets these; the browser app leaves the defaults ----
+export class FecStop extends Error {
+  constructor(readonly reason: "budget" | "time" | "rate-limit", message: string) { super(message); }
+}
+export type FecControl = {
+  /** Runs before every live FEC request; may throw FecStop to end the run cleanly. */
+  beforeCall?: () => void;
+  afterResponse?: (info: { status: number; remaining: number | null }) => void;
+  /** false = throw FecStop on HTTP 429 instead of pausing 10 minutes. */
+  waitOn429: boolean;
+};
+export const fecControl: FecControl = { waitOn429: true };
+/** Live HTTP requests sent to the FEC (cache hits are not counted). */
+export const fecStats = { calls: 0 };
 
 // ---- FEC rate status, observable from React ----
 type FecStatus = { paused: boolean; remaining: number | null; usedHour: number };
@@ -49,11 +67,16 @@ async function sharedPut(cacheKey: string, payload: unknown) {
   } catch (e) { setSharedCacheOnline(false); recordDiag({ error: (e as Error).message }); }
 }
 
+const store = (): Storage | null => { try { return typeof localStorage === "undefined" ? null : localStorage; } catch { return null; } };
+const pendingPuts = new Set<Promise<void>>();
+/** Resolves once every fire-and-forget shared-cache write has settled (Node jobs call this before exiting). */
+export const flushCache = async () => { await Promise.allSettled([...pendingPuts]); };
+
 export async function cacheGet<T = unknown>(cacheKey: string, cycle: number): Promise<T | undefined> {
   const ttl = ttlFor(cycle);
   const key = `fec:${cacheKey}`;
   try {
-    const hit = localStorage.getItem(key);
+    const hit = store()?.getItem(key);
     if (hit) {
       const { t, data } = JSON.parse(hit);
       if (Date.now() - t < ttl) return data as T;
@@ -61,15 +84,16 @@ export async function cacheGet<T = unknown>(cacheKey: string, cycle: number): Pr
   } catch { /* ignore */ }
   const shared = await sharedGet(cacheKey, ttl);
   if (shared !== undefined) {
-    try { localStorage.setItem(key, JSON.stringify({ t: Date.now(), data: shared })); } catch { /* quota */ }
+    try { store()?.setItem(key, JSON.stringify({ t: Date.now(), data: shared })); } catch { /* quota */ }
     return shared as T;
   }
   return undefined;
 }
 
 export function cachePut(cacheKey: string, data: unknown) {
-  try { localStorage.setItem(`fec:${cacheKey}`, JSON.stringify({ t: Date.now(), data })); } catch { /* quota */ }
-  void sharedPut(cacheKey, data);
+  try { store()?.setItem(`fec:${cacheKey}`, JSON.stringify({ t: Date.now(), data })); } catch { /* quota */ }
+  const p = sharedPut(cacheKey, data).finally(() => pendingPuts.delete(p));
+  pendingPuts.add(p);
 }
 
 export async function fecGet<T = any>(path: string, params: Record<string, string | number>, cycle: number): Promise<T> {
@@ -84,19 +108,23 @@ export async function fecGet<T = any>(path: string, params: Record<string, strin
       if (wait > 0) await new Promise((r) => setTimeout(r, wait));
       pruneCalls();
       if (callTimes.length >= HOUR_CAP) { await new Promise((r) => setTimeout(r, callTimes[0]! + 3600_000 - Date.now() + 100)); continue; }
+      fecControl.beforeCall?.();
       lastCall = Date.now();
+      fecStats.calls++;
       callTimes.push(lastCall);
       setStatus({ usedHour: callTimes.length });
       const res = await fetch(url);
       const rem = res.headers.get("X-RateLimit-Remaining");
       if (rem !== null && !isNaN(Number(rem))) setStatus({ remaining: Number(rem) });
+      fecControl.afterResponse?.({ status: res.status, remaining: rem !== null && !isNaN(Number(rem)) ? Number(rem) : null });
       if (res.status === 429) {
+        if (!fecControl.waitOn429) throw new FecStop("rate-limit", "FEC returned HTTP 429");
         setStatus({ paused: true, remaining: 0 });
         await new Promise((r) => setTimeout(r, PAUSE_429));
         setStatus({ paused: false });
         continue;
       }
-      if (!res.ok) throw new DataUnavailable(`FEC request failed (${res.status})`);
+      if (!res.ok) throw new DataUnavailable(`FEC request failed (${res.status})`, res.status);
       return res.json();
     }
   });

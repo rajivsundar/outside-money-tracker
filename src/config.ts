@@ -1,6 +1,8 @@
-// Public FEC (api.data.gov) key — used directly from the browser.
+import { nodeEnv } from "@/lib/env";
+
+// Public FEC (api.data.gov) key — used directly from the browser. The Node backfill job may override it with FEC_API_KEY.
 export const FEC_API_BASE = "https://api.open.fec.gov/v1";
-export const FEC_API_KEY = "YXXosIoVP60bOIlePB4N2Nv6vkXrfdPhec3LUZ2r";
+export const FEC_API_KEY = nodeEnv("FEC_API_KEY") ?? "YXXosIoVP60bOIlePB4N2Nv6vkXrfdPhec3LUZ2r";
 export const CYCLES = [2016, 2018, 2020, 2022, 2024, 2026] as const;
 export const DEFAULT_CYCLE = 2024;
 export const IN_PROGRESS_CYCLE = 2026;

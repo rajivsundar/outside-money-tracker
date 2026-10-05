@@ -1,9 +1,11 @@
 import { createClient } from "@supabase/supabase-js";
 import { useSyncExternalStore } from "react";
+import { nodeEnv } from "@/lib/env";
 
-// User's own external Supabase project (publishable key — safe in browser code).
-export const SUPABASE_URL = "https://qqpokmhvjfzlrhtumfgt.supabase.co";
-export const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_f03m_5mNaU7heNgYlcGg1Q_YJu12NEr";
+// User's own external Supabase project (publishable key — safe in browser code). The Node backfill job may override
+// both with SUPABASE_URL / SUPABASE_KEY; in the browser those are never set.
+export const SUPABASE_URL = nodeEnv("SUPABASE_URL") ?? "https://qqpokmhvjfzlrhtumfgt.supabase.co";
+export const SUPABASE_PUBLISHABLE_KEY = nodeEnv("SUPABASE_KEY") ?? "sb_publishable_f03m_5mNaU7heNgYlcGg1Q_YJu12NEr";
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
@@ -50,6 +52,7 @@ export function recordDiag(p: { read?: number; written?: number; error?: string 
   diag = { read: diag.read + (p.read ?? 0), written: diag.written + (p.written ?? 0), lastError: p.error !== undefined && p.error !== null ? p.error : diag.lastError };
   diagListeners.forEach((l) => l());
 }
+export const getDiagnostics = () => diag;
 export function useDiagnostics() {
   return useSyncExternalStore(
     (l) => { diagListeners.add(l); return () => diagListeners.delete(l); },
