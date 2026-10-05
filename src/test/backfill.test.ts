@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { BACKFILL_CYCLES, MIN_REMAINING, PLAN, classifyFailure, parseArgs, stopReason } from "../../scripts/backfill-lib";
+import { BACKFILL_CYCLES, MIN_REMAINING, PLAN, REFRESH_AFTER_DAYS, REFRESH_CYCLE, classifyFailure, isStale, oldestFirst, parseArgs, staleCutoff, stopReason } from "../../scripts/backfill-lib";
+import { ttlFor } from "@/config";
 
 // The app's Supabase client is not needed to test the FEC hooks: every cache lookup misses and every write succeeds.
 vi.mock("@/lib/supabase", () => {
@@ -10,20 +11,54 @@ vi.mock("@/lib/supabase", () => {
 import { DataUnavailable, FecStop, fecControl, fecGet, fecStats } from "@/lib/fec";
 
 describe("plan and options", () => {
-  it("runs 2024 → 2016, Senate then House within each cycle", () => {
+  it("runs 2026 first, then 2024 → 2016, Senate then House within each cycle", () => {
     expect(PLAN.map(([c, ch]) => `${c} ${ch}`)).toEqual([
-      "2024 senate", "2024 house", "2022 senate", "2022 house", "2020 senate", "2020 house", "2018 senate", "2018 house", "2016 senate", "2016 house",
+      "2026 senate", "2026 house", "2024 senate", "2024 house", "2022 senate", "2022 house", "2020 senate", "2020 house", "2018 senate", "2018 house", "2016 senate", "2016 house",
     ]);
-    expect(BACKFILL_CYCLES).not.toContain(2026);
+    expect(BACKFILL_CYCLES[0]).toBe(2026);
+    expect(PLAN).toHaveLength(12);
   });
   it("defaults to 850 calls / 55 minutes without organizations", () => {
-    expect(parseArgs([])).toEqual({ maxCalls: 850, maxMinutes: 55, withOrgs: false });
+    expect(parseArgs([])).toEqual({ maxCalls: 850, maxMinutes: 55, withOrgs: false, refreshOnly: false, refreshAfterDays: 7 });
   });
   it("accepts overrides and --with-orgs, and rejects bad input", () => {
-    expect(parseArgs(["--max-calls", "20", "--max-minutes", "5", "--with-orgs"])).toEqual({ maxCalls: 20, maxMinutes: 5, withOrgs: true });
+    expect(parseArgs(["--max-calls", "20", "--max-minutes", "5", "--with-orgs", "--refresh-only", "--refresh-after-days", "0.5"])).toEqual({ maxCalls: 20, maxMinutes: 5, withOrgs: true, refreshOnly: true, refreshAfterDays: 0.5 });
     expect(() => parseArgs(["--max-calls"])).toThrow();
     expect(() => parseArgs(["--max-calls", "-3"])).toThrow();
     expect(() => parseArgs(["--bogus"])).toThrow(/Unknown argument/);
+  });
+});
+
+describe("refresh mode", () => {
+  const now = Date.parse("2026-10-05T12:00:00Z");
+  const day = 86_400_000;
+  const iso = (daysAgo: number) => new Date(now - daysAgo * day).toISOString();
+
+  it("only ever refreshes the in-progress cycle, 2026", () => {
+    expect(REFRESH_CYCLE).toBe(2026);
+    expect([2016, 2018, 2020, 2022, 2024]).not.toContain(REFRESH_CYCLE);
+  });
+  it("treats results older than 7 days as stale", () => {
+    expect(REFRESH_AFTER_DAYS).toBe(7);
+    expect(staleCutoff(now).toISOString()).toBe(iso(7));
+    expect(isStale(iso(7.01), now)).toBe(true);
+    expect(isStale(iso(30), now)).toBe(true);
+    expect(isStale(iso(6.99), now)).toBe(false);
+    expect(isStale(iso(0), now)).toBe(false);
+  });
+  it("counts a missing or unreadable computed_at as stale", () => {
+    expect(isStale(iso(2), now, 1)).toBe(true); // custom threshold
+    expect(isStale(iso(0.5), now, 1)).toBe(false);
+    expect(isStale(null, now)).toBe(true);
+    expect(isStale("not a date", now)).toBe(true);
+  });
+  it("orders oldest first without changing the input", () => {
+    const rows = [{ n: "b", computedAt: iso(9) }, { n: "a", computedAt: iso(30) }, { n: "c", computedAt: iso(8) }, { n: "u", computedAt: null }];
+    expect(oldestFirst(rows).map((r) => r.n)).toEqual(["u", "a", "b", "c"]);
+    expect(rows.map((r) => r.n)).toEqual(["b", "a", "c", "u"]);
+  });
+  it("relies on the app's 24-hour fec_cache lifetime for 2026", () => {
+    expect(ttlFor(2026)).toBe(24 * 60 * 60 * 1000);
   });
 });
 

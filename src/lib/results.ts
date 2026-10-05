@@ -105,6 +105,17 @@ export async function updateComputeStatus(chamber: Chamber, cycle: number, state
   if (r) recordDiag({ written: 1 });
 }
 
+export type StaleRow = { cand_id: string; name: string; party: string; state: string; district: string | null; receipts: number | null; committee: string | null; computedAt: string | null };
+/** Saved (calc_version-current) rows computed before `before`, oldest first; null when the tables can't be reached. Used by the backfill's refresh mode. */
+export async function readStale(chamber: Chamber, cycle: number, before: Date, limit = 1000): Promise<StaleRow[] | null> {
+  const t = T(chamber);
+  const cols = chamber === "house" ? "cand_id,name,party,state,district,principal_committee,receipts,computed_at" : "cand_id,name,party,state,principal_committee,receipts,computed_at";
+  const rows = await safe<any[]>(`${t.res} stale read`, supabase.from(t.res).select(cols).eq("cycle", cycle).gte("calc_version", CALC_VERSION).lt("computed_at", before.toISOString()).order("computed_at", { ascending: true }).limit(limit));
+  if (!rows) return null;
+  recordDiag({ read: rows.length });
+  return dedupeByCommittee(rows.map((r) => ({ cand_id: r.cand_id, name: r.name, party: r.party ?? "", state: String(r.state).trim(), district: r.district ? String(r.district).trim() : null, receipts: n(r.receipts), committee: r.principal_committee ? String(r.principal_committee).trim() : null, computedAt: r.computed_at ?? null })));
+}
+
 export type ShareRow = {
   cand_id: string; name: string; party: string; state: string; district: string | null;
   receipts: number | null; itemized: number | null; transfersOther: number | null; committee: string | null;

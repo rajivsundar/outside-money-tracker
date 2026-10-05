@@ -1,6 +1,7 @@
 name: Backfill FEC results
 
-# One-time backfill of every Senate race and House district for 2024 -> 2016 into Supabase (see scripts/backfill.ts).
+# Backfills every Senate race and House district for 2026 -> 2016 into Supabase (see scripts/backfill.ts), 2026 first.
+# Once everything is complete it switches to refresh mode: 2026 results older than 7 days are recomputed, oldest first.
 # Each hourly run does up to 850 FEC calls / 55 minutes, then stops cleanly; finished work is skipped next time.
 # To stop it: Actions tab -> "Backfill FEC results" -> "..." -> Disable workflow.
 on:
