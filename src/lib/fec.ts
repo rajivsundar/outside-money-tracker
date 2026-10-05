@@ -1,6 +1,7 @@
 import { loadOrComputeDetail } from "@/lib/results";
 import { FEC_API_BASE, FEC_API_KEY, MIN_RECEIPTS, SPECIAL_ELECTIONS, ttlFor, type Chamber } from "@/config";
 import type { Categories } from "@/components/finance";
+import { isDuplicateCandidate } from "@/lib/share";
 import { recordDiag, setSharedCacheOnline, supabase, withTimeout } from "@/lib/supabase";
 import { useSyncExternalStore } from "react";
 
@@ -121,8 +122,9 @@ export async function fetchCandidates(cycle: number, office: "S" | "H" = "S", st
       const receipts = num(r.receipts);
       if (!r.candidate_id || !r.state || receipts === null) { console.warn("FEC candidate row has unexpected shape", r); continue; }
       if (receipts <= MIN_RECEIPTS) { stop = true; continue; }
-      if (out.some((c) => c.id === r.candidate_id)) continue;
-      out.push({ id: r.candidate_id, name: titleName(r.name ?? r.candidate_id), party: r.party_full ?? r.party ?? "", state: r.state, stateName: r.state_full ?? r.state, receipts, district: office === "H" ? await houseDistrict(r, cycle) : undefined });
+      const name = titleName(r.name ?? r.candidate_id);
+      if (isDuplicateCandidate(out, { id: r.candidate_id, state: r.state, name, receipts })) continue; // incl. one person under two candidate IDs
+      out.push({ id: r.candidate_id, name, party: r.party_full ?? r.party ?? "", state: r.state, stateName: r.state_full ?? r.state, receipts, district: office === "H" ? await houseDistrict(r, cycle) : undefined });
     }
     if (stop || page >= (json?.pagination?.pages ?? 1)) break;
   }
@@ -227,12 +229,7 @@ export const summaryKey = (cycle: number) => `outside-money/leaderboard?cycle=${
 export const getCycleSummary = (cycle: number) => cacheGet<CycleSummary>(summaryKey(cycle), cycle);
 export const saveCycleSummary = (s: CycleSummary) => cachePut(summaryKey(s.cycle), s);
 
-export function median(xs: number[]): number | null {
-  if (!xs.length) return null;
-  const s = [...xs].sort((a, b) => a - b);
-  const m = Math.floor(s.length / 2);
-  return s.length % 2 ? s[m]! : (s[m - 1]! + s[m]!) / 2;
-}
+export { median } from "@/lib/share";
 
 function titleName(raw: string) {
   const [last, first] = raw.split(",").map((s) => s.trim());

@@ -11,9 +11,9 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Outside Money — Where does your representatives' money come from?" },
-      { name: "description", content: "Map of U.S. Senate and House candidates' out-of-state share of itemized individual dollars, from live FEC data, 2016–2026." },
+      { name: "description", content: "Map of U.S. Senate and House candidates' out-of-state share of located donor dollars, from live FEC data, 2016–2026." },
       { property: "og:title", content: "Outside Money — Where does your representatives' money come from?" },
-      { property: "og:description", content: "Map of Senate and House candidates' out-of-state share of itemized individual dollars, from FEC data." },
+      { property: "og:description", content: "Map of Senate and House candidates' out-of-state share of located donor dollars, from FEC data." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],

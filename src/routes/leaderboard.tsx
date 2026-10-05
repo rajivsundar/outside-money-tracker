@@ -10,13 +10,14 @@ import { ChamberToggle, CycleSelect, RaceLink, formatMoney } from "@/components/
 import { STATE_NAME, cycleLabel, parseChamber, parseCycle } from "@/config";
 import { Link } from "@tanstack/react-router";
 import { candidatesQuery, detailQuery, saveCycleSummary, useFecStatus, type CandidateSummary } from "@/lib/fec";
+import { detailGeoReliable, formatShare, guardShare, isGeoReliable } from "@/lib/share";
 
 export const Route = createFileRoute("/leaderboard")({
   head: () => ({ meta: [
     { title: "Leaderboard — Outside Money" },
-    { name: "description", content: "U.S. Senate and House candidates ranked by out-of-state share of itemized individual dollars, by cycle, from FEC data." },
+    { name: "description", content: "U.S. Senate and House candidates ranked by out-of-state share of located donor dollars, by cycle, from FEC data." },
     { property: "og:title", content: "Leaderboard — Outside Money" },
-    { property: "og:description", content: "U.S. Senate and House candidates ranked by out-of-state share of itemized individual dollars, 2016–2026." },
+    { property: "og:description", content: "U.S. Senate and House candidates ranked by out-of-state share of located donor dollars, 2016–2026." },
     { property: "og:type", content: "website" },
     { name: "twitter:card", content: "summary_large_image" },
   ] }),
@@ -24,7 +25,7 @@ export const Route = createFileRoute("/leaderboard")({
   component: Leaderboard,
 });
 
-type Row = CandidateSummary & { outShare: number | null; itemized: number };
+type Row = CandidateSummary & { outShare: number | null; itemized: number; reliable: boolean };
 
 function formatEta(ms: number) {
   const m = Math.round(ms / 60000);
@@ -63,9 +64,9 @@ function Leaderboard() {
         let row: Row;
         try {
           const d = await qc.fetchQuery(detailQuery(c, cycle));
-          row = { ...c, outShare: d.outShare, itemized: d.itemized };
+          row = { ...c, outShare: d.outShare, itemized: d.itemized, reliable: detailGeoReliable(d) };
         } catch {
-          row = { ...c, outShare: null, itemized: 0 };
+          row = { ...c, outShare: null, itemized: 0, reliable: true };
         }
         if (runId.current !== id) return;
         results.push(row);
@@ -76,18 +77,21 @@ function Leaderboard() {
         setProgress({ done: i + 1, total: cands.length, eta: avg * (cands.length - i - 1) });
         void updateCycleStatus(cycle, cands.length, i + 1);
       }
-      saveCycleSummary({ cycle, computedAt: new Date().toISOString(), rows: results.map((r) => ({ id: r.id, outShare: r.outShare })) });
+      saveCycleSummary({ cycle, computedAt: new Date().toISOString(), rows: results.map((r) => ({ id: r.id, outShare: r.reliable ? guardShare(r.outShare, r.id) : null })) });
     } catch { setError("Data unavailable. The FEC service could not be reached."); }
     if (runId.current === id) setRunning(false);
   }
 
-  const sorted = [...rows].sort((a, b) => (b.outShare ?? -1) - (a.outShare ?? -1));
+  // Candidates whose donor-state totals exceed their itemized gifts and transfers are left out of the ranking.
+  const ranked = rows.filter((r) => r.reliable);
+  const excluded = rows.length - ranked.length;
+  const sorted = ranked.sort((a, b) => (guardShare(b.outShare) ?? -1) - (guardShare(a.outShare) ?? -1));
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-12 sm:px-6 sm:py-16">
       <p className="section-kicker">Ranking</p>
       <h1 className="font-serif text-4xl font-bold sm:text-5xl">Leaderboard</h1>
-      <p className="mt-4 max-w-2xl text-muted-foreground">Candidates ranked by out-of-state share of itemized individual dollars. Loading every candidate can take a while the first time; cached candidates load instantly.</p>
+      <p className="mt-4 max-w-2xl text-muted-foreground">Candidates ranked by out-of-state share of located donor dollars. Loading every candidate can take a while the first time; cached candidates load instantly.</p>
       <div className="mt-6 max-w-md"><CycleSelect value={cycle} onChange={(c) => navigate({ to: "/leaderboard", search: { cycle: c, chamber } })} /></div>
       <div className="mt-4"><ChamberToggle value={chamber} onChange={(c) => navigate({ to: "/leaderboard", search: { cycle, chamber: c } })} /></div>
       <p className="mt-2 text-sm text-muted-foreground">{cycleLabel(cycle)}</p>
@@ -117,6 +121,7 @@ function Leaderboard() {
         </div>
       </details>
       {error && <p className="mt-6 text-muted-foreground">{error}</p>}
+      {chamber === "senate" && excluded > 0 && <p className="mt-6 text-xs text-muted-foreground">{excluded} candidate{excluded === 1 ? "" : "s"} left out of this ranking: FEC donor-state totals exceed their itemized gifts and transfers, so their donor locations are not comparable.</p>}
       {chamber === "senate" && sorted.length > 0 && (
         <ol className="mt-10 divide-y divide-border border-y border-border">
           {sorted.map((r, i) => (
@@ -126,7 +131,7 @@ function Leaderboard() {
                 <p className="font-semibold">{r.name} <span className="text-xs font-normal text-muted-foreground">{r.party} · {r.stateName}</span></p>
                 <p className="text-xs text-muted-foreground">{formatMoney(r.itemized, true)} itemized individual dollars · <RaceLink code={r.state} cycle={cycle}>Race</RaceLink></p>
               </div>
-              <p className="text-right font-mono text-xl font-bold text-out-state">{r.outShare == null ? <span className="text-sm font-normal text-muted-foreground">data unavailable</span> : `${r.outShare.toFixed(1)}%`}<span className="block font-sans text-[10px] font-normal text-muted-foreground">of itemized individual dollars</span></p>
+              <p className="text-right font-mono text-xl font-bold text-out-state">{r.outShare == null || guardShare(r.outShare, r.id) === null ? <span className="text-sm font-normal text-muted-foreground">{formatShare(null)}</span> : formatShare(r.outShare, r.id)}<span className="block font-sans text-[10px] font-normal text-muted-foreground">of located donor dollars</span></p>
             </li>
           ))}
         </ol>
@@ -137,13 +142,17 @@ function Leaderboard() {
 
 function HouseBoard({ cycle }: { cycle: number }) {
   const { data, isLoading } = useQuery({ queryKey: ["computed", "house", cycle], queryFn: () => readComputed("house", cycle), staleTime: 30_000 });
-  const rows = [...(data ?? [])].sort((a, b) => (b.share ?? -1) - (a.share ?? -1));
+  const all = data ?? [];
+  // Candidates whose donor-state totals exceed their itemized gifts and transfers are left out of the ranking.
+  const rows = all.filter((r) => isGeoReliable(r)).sort((a, b) => (guardShare(b.share) ?? -1) - (guardShare(a.share) ?? -1));
+  const excluded = all.length - rows.length;
   const states = new Set(rows.map((r) => r.state)).size;
   return (
     <div className="mt-7">
       <p className="text-sm text-muted-foreground">House candidates are computed state by state when someone opens a state on the map. {rows.length} candidates in {states} states computed so far for {cycle}.</p>
       {isLoading && <p className="mt-4 text-muted-foreground">Loading saved results…</p>}
       {data === null && <p className="mt-4 text-muted-foreground">Saved results couldn't be reached.</p>}
+      {excluded > 0 && <p className="mt-4 text-xs text-muted-foreground">{excluded} candidate{excluded === 1 ? "" : "s"} left out of this ranking: FEC donor-state totals exceed their itemized gifts and transfers, so their donor locations are not comparable.</p>}
       {rows.length > 0 && (
         <ol className="mt-8 divide-y divide-border border-y border-border">
           {rows.map((r, i) => (
@@ -153,7 +162,7 @@ function HouseBoard({ cycle }: { cycle: number }) {
                 <p className="font-semibold">{r.name} <span className="text-xs font-normal text-muted-foreground">{r.party} · {STATE_NAME[r.state] ?? r.state} {r.district === "00" || !r.district ? "At-large" : `District ${Number(r.district)}`}</span></p>
                 <p className="text-xs text-muted-foreground">{r.itemized === null ? "data unavailable" : formatMoney(r.itemized, true)} itemized individual dollars · <Link to="/house/$st/$district" params={{ st: r.state.toLowerCase(), district: r.district ?? "00" }} search={{ cycle }} className="font-semibold text-primary hover:underline">District</Link></p>
               </div>
-              <p className="text-right font-mono text-xl font-bold text-out-state">{r.share == null ? <span className="text-sm font-normal text-muted-foreground">data unavailable</span> : `${r.share.toFixed(1)}%`}<span className="block font-sans text-[10px] font-normal text-muted-foreground">of itemized individual dollars</span></p>
+              <p className="text-right font-mono text-xl font-bold text-out-state">{r.share == null || guardShare(r.share, r.cand_id) === null ? <span className="text-sm font-normal text-muted-foreground">{formatShare(null)}</span> : formatShare(r.share, r.cand_id)}<span className="block font-sans text-[10px] font-normal text-muted-foreground">of located donor dollars</span></p>
             </li>
           ))}
         </ol>

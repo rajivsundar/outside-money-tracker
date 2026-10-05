@@ -24,7 +24,7 @@ export function describe(s: StateStatus | undefined, noneLabel: string) {
   if (s.kind === "none") return noneLabel;
   return s.median === null
     ? `Data unavailable · ${s.count} candidate${s.count === 1 ? "" : "s"} computed`
-    : `Median ${s.median.toFixed(1)}% of itemized individual dollars from out of state · ${s.count} candidate${s.count === 1 ? "" : "s"} computed`;
+    : `Median ${s.median.toFixed(1)}% of located donor dollars from out of state · ${s.count} candidate${s.count === 1 ? "" : "s"} computed`;
 }
 
 export function UsMap({ statuses, noneLabel, onSelect }: Props) {

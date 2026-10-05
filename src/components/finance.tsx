@@ -4,18 +4,27 @@ import type { ReactNode } from "react";
 import { CYCLES, cycleLabel, type Chamber } from "@/config";
 import { scaleLinear } from "d3-scale";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DATA_UNAVAILABLE, type BarRow } from "@/lib/share";
 
-export const categoryMeta = [
-  { key: "inState", label: "In-state", className: "bg-in-state" },
-  { key: "outOfState", label: "Out-of-state", className: "bg-out-state" },
-  { key: "unknown", label: "Unknown small donors", className: "bg-unknown" },
+/** Stored per-candidate percentages of receipts (the shape saved in the results tables). */
+export type Categories = Record<"inState" | "outOfState" | "unknown" | "pacs" | "party" | "self" | "transfers", number>;
+
+/** Bar A: where the money came from, as shares of total receipts by type. No geography. */
+export const receiptMeta = [
+  { key: "itemized", label: "Itemized individual donors", className: "bg-itemized" },
+  { key: "small", label: "Small donors (location not reported)", className: "bg-unknown" },
   { key: "pacs", label: "PACs", className: "bg-pac" },
   { key: "party", label: "Party", className: "bg-party" },
   { key: "self", label: "Self-funding", className: "bg-other" },
-  { key: "transfers", label: "Transfers & other", className: "bg-transfers" },
+  { key: "other", label: "Transfers & other", className: "bg-transfers" },
 ] as const;
 
-export type Categories = Record<(typeof categoryMeta)[number]["key"], number>;
+/** Bar B: where located donors live, as shares of located donor dollars. Row labels name the race state. */
+export const locationMeta = [
+  { key: "inState", label: "In this state", className: "bg-in-state" },
+  { key: "outOfState", label: "Outside this state", className: "bg-out-state" },
+] as const;
+const classFor = (key: string) => [...receiptMeta, ...locationMeta].find((m) => m.key === key)?.className ?? "bg-muted";
 
 export function formatMoney(value: number, compact = false) {
   return new Intl.NumberFormat("en-US", {
@@ -26,10 +35,10 @@ export function formatMoney(value: number, compact = false) {
   }).format(value);
 }
 
-export function CategoryLegend() {
+function LegendList({ items, label }: { items: readonly { key: string; label: string; className: string }[]; label: string }) {
   return (
-    <ul className="flex flex-wrap gap-x-5 gap-y-2" aria-label="Receipt categories">
-      {categoryMeta.map((item) => (
+    <ul className="flex flex-wrap gap-x-5 gap-y-2" aria-label={label}>
+      {items.map((item) => (
         <li key={item.key} className="flex items-center gap-2 text-xs text-muted-foreground">
           <span className={`size-2.5 rounded-sm ${item.className}`} aria-hidden="true" />
           {item.label}
@@ -39,33 +48,58 @@ export function CategoryLegend() {
   );
 }
 
+export function CategoryLegend() {
+  return (
+    <div className="grid gap-3">
+      <div><p className="mb-1.5 text-xs font-semibold">Where the money came from <span className="font-normal text-muted-foreground">(share of all receipts)</span></p><LegendList items={receiptMeta} label="Receipt categories" /></div>
+      <div><p className="mb-1.5 text-xs font-semibold">Where located donors live <span className="font-normal text-muted-foreground">(share of located donor dollars)</span></p><LegendList items={locationMeta} label="Donor locations" /></div>
+    </div>
+  );
+}
+
 export const JFC_NOTE = "Money raised through joint fundraising committees arrives as transfers; its donors' locations are not counted here.";
 
-export function ReceiptBar({ categories, label }: { categories: Categories; label: string }) {
-  const total = categoryMeta.reduce((s, i) => s + categories[i.key], 0);
-  const scale = total > 100 ? 100 / total : 1;
+function StackedBar({ rows, label }: { rows: BarRow[]; label: string }) {
   return (
     <div>
       <div className="flex h-9 w-full overflow-hidden rounded-sm" role="img" aria-label={label}>
-        {categoryMeta.map((item) => (
-          <div
-            key={item.key}
-            className={`${item.className} min-w-0`}
-            style={{ width: `${categories[item.key] * scale}%` }}
-            title={`${item.label}: ${categories[item.key].toFixed(1)}% of receipts`}
-          />
+        {rows.map((r) => (
+          <div key={r.key} className={`${classFor(r.key)} min-w-0`} style={{ width: `${r.value}%` }} title={`${r.label}: ${r.text}`} />
         ))}
       </div>
-      <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
-        {categoryMeta.map((item) => (
-          <div key={item.key} className="flex items-baseline justify-between gap-2 border-b border-border pb-1.5 text-sm">
-            <span className="text-muted-foreground">{item.label}</span>
-            <span className="font-mono font-semibold tabular-nums">{categories[item.key].toFixed(1)}%</span>
+      <div className="mt-4 grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
+        {rows.map((r) => (
+          <div key={r.key} className="flex items-baseline justify-between gap-3 border-b border-border pb-1.5 text-sm">
+            <span className="text-muted-foreground">{r.label}</span>
+            <span className="text-right font-mono font-semibold tabular-nums">{r.text}</span>
           </div>
         ))}
       </div>
-      <p className="mt-2 text-xs text-muted-foreground">Each percentage is of total receipts.{total > 100.5 && ` These categories add to ${total.toFixed(1)}% of receipts because the donor-state rows don't reconcile with the itemized total; the bar is drawn to fit.`} {JFC_NOTE}</p>
     </div>
+  );
+}
+
+/** Bar A: where the money came from. Shares of total receipts by type only; always sums to 100%. */
+export function ReceiptBar({ rows, label }: { rows: BarRow[]; label: string }) {
+  return (
+    <section>
+      <h4 className="mb-2 text-sm font-bold">Where the money came from</h4>
+      <StackedBar rows={rows} label={label} />
+      <p className="mt-2 text-xs text-muted-foreground">Types of money, as a share of all receipts; the categories add to 100%. Small donors' locations are not reported, so this bar has no geography. {JFC_NOTE}</p>
+    </section>
+  );
+}
+
+/** Bar B: where located donors live. In-state vs out-of-state share of located donor dollars. */
+export function DonorLocationBar({ rows, donorDollars, label }: { rows: BarRow[] | null; donorDollars: number; label: string }) {
+  return (
+    <section className="mt-8">
+      <h4 className="mb-2 text-sm font-bold">Where located donors live</h4>
+      {rows === null ? <p className="text-sm text-muted-foreground">{DATA_UNAVAILABLE}</p> : <>
+        <StackedBar rows={rows} label={label} />
+        <p className="mt-2 text-xs text-muted-foreground">Located donor dollars: the {formatMoney(donorDollars)} that this campaign's FEC donor-state totals assign to a state. The two shares add to 100%.</p>
+      </>}
+    </section>
   );
 }
 
@@ -99,7 +133,7 @@ export function CycleSelect({ value, onChange, dark = false }: { value: number; 
 }
 
 
-/** Map/tile scale for median out-of-state share (% of itemized individual dollars). */
+/** Map/tile colour scale for the median out-of-state share of located donor dollars. */
 export const SHARE_STOPS = ["#EAF4F6", "#1F7A8C", "#E07A1F"] as const;
 export const shareColor = scaleLinear<string>().domain([0, 50, 100]).range([...SHARE_STOPS]).clamp(true);
 
@@ -109,7 +143,7 @@ export function ShareLegend({ noRaceLabel }: { noRaceLabel?: string | undefined 
       <div>
         <div className="h-2.5 w-48 rounded-sm" style={{ background: `linear-gradient(to right, ${SHARE_STOPS.join(",")})` }} aria-hidden="true" />
         <div className="mt-1 flex w-48 justify-between font-mono"><span>0%</span><span>50%</span><span>100%</span></div>
-        <p>Median out-of-state share of itemized individual dollars</p>
+        <p>Median out-of-state share of located donor dollars</p>
       </div>
       <span className="inline-flex items-center gap-2"><span className="hatch size-4 rounded-sm border border-border" aria-hidden="true" />Not computed yet — click to load</span>
       {noRaceLabel && <span className="inline-flex items-center gap-2"><span className="hatch-dense size-4 rounded-sm border border-border" aria-hidden="true" />{noRaceLabel}</span>}

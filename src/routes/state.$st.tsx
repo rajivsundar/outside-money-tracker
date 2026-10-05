@@ -93,7 +93,7 @@ function HouseSection({ code, cycle, passive = false }: { code: string; cycle: n
     const m = medians.get(d);
     if (!m) return "Not computed yet";
     const of = totals.get(d) ? ` of ${totals.get(d)}` : "";
-    return m.median === null ? `Data unavailable · ${m.count}${of} computed` : `Median ${m.median.toFixed(1)}% of itemized individual dollars from out of state · ${m.count}${of} candidates computed`;
+    return m.median === null ? `Data unavailable · ${m.count}${of} computed` : `Median ${m.median.toFixed(1)}% of located donor dollars from out of state · ${m.count}${of} candidates computed`;
   };
   const open = (d: string) => navigate({ to: "/house/$st/$district", params: { st: code.toLowerCase(), district: d }, search: { cycle } });
 
@@ -102,7 +102,7 @@ function HouseSection({ code, cycle, passive = false }: { code: string; cycle: n
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
         <p className="section-kicker">U.S. House</p>
         <h2 className="section-title">House districts</h2>
-        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">Tile colours show the median out-of-state share of itemized individual dollars (donor state other than {STATE_NAME[code] ?? code}). Tiles are equal-size and ordered by district number, not map boundaries.</p>
+        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">Tile colours show the median out-of-state share of located donor dollars (donor state other than {STATE_NAME[code] ?? code}). Tiles are equal-size and ordered by district number, not map boundaries.</p>
         {passive && !rows.length && <p className="mt-4 text-sm"><Link to="/state/$st" params={{ st: code.toLowerCase() }} search={{ cycle, chamber: "house" }} className="font-semibold text-primary hover:underline">Switch to House to load this state's districts</Link></p>}
         {progress && <div className="mt-5 max-w-lg"><Progress value={(progress.done / Math.max(1, progress.total)) * 100} /><p className="mt-1 text-xs text-muted-foreground">Loading {progress.done} of {progress.total} candidates from the FEC</p></div>}
         {cands.isLoading && <p className="mt-4 text-sm text-muted-foreground">Loading House candidates from the FEC…</p>}
@@ -118,7 +118,7 @@ function HouseSection({ code, cycle, passive = false }: { code: string; cycle: n
               ))}</TableBody>
             </Table>
           ) : (
-            <ul className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(4.5rem,1fr))] gap-2">
+            <ul className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(5.5rem,1fr))] gap-2">
               {districts.map((d) => {
                 const m = medians.get(d);
                 const v = m?.median ?? null;
@@ -128,7 +128,7 @@ function HouseSection({ code, cycle, passive = false }: { code: string; cycle: n
                       className={`flex aspect-square w-full flex-col items-center justify-center rounded-md border border-border text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${v === null ? "hatch" : ""}`}
                       style={v === null ? undefined : { background: shareColor(v) }}>
                       <span className="rounded bg-background/85 px-1.5 font-mono text-sm font-bold">{districtLabel(d, atLarge)}</span>
-                      <span className="mt-1 rounded bg-background/85 px-1 font-mono text-[10px]">{v === null ? (m ? "n/a" : "—") : `${v.toFixed(0)}%`}</span>
+                      <span className="mt-1 rounded bg-background/85 px-1 text-center font-mono text-[10px] leading-tight">{v === null ? (m ? "n/a" : "—") : `${v.toFixed(0)}%`}{v !== null && <span className="block font-sans text-[8px] text-muted-foreground">located $ out of state</span>}</span>
                     </button>
                   </li>
                 );

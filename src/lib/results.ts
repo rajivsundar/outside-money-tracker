@@ -1,8 +1,9 @@
 // Computed per-candidate results stored in the user's external Supabase project.
 // Pages read these first; only uncomputed candidates call the FEC.
 import { SPECIAL_ELECTIONS, type Chamber } from "@/config";
-import { CALC_VERSION, fetchCandidateDetail, median, reconciles, type CandidateDetail, type CandidateSummary } from "@/lib/fec";
+import { CALC_VERSION, fetchCandidateDetail, reconciles, type CandidateDetail, type CandidateSummary } from "@/lib/fec";
 import { recordDiag, setSharedCacheOnline, supabase, withTimeout } from "@/lib/supabase";
+import { dedupeByCommittee, usableShare } from "@/lib/share";
 
 const n = (v: unknown) => (v === null || v === undefined || v === "" || isNaN(Number(v)) ? null : Number(v));
 
@@ -88,10 +89,12 @@ export async function readCycleTrend(cycle: number): Promise<CycleTrend> {
   if (st === null) return null;
   const complete = !!st.completed_at && n(st.candidates_done)! >= n(st.candidates_total)!;
   if (!complete) return { cycle, complete: false, shares: [] };
-  const rows = await safe<any[]>("senate_results read", supabase.from("senate_results").select("out_of_state_share").eq("cycle", cycle).gte("calc_version", CALC_VERSION));
+  const rows = await safe<any[]>("senate_results read", supabase.from("senate_results").select("out_of_state_share, donor_state_sum, itemized_indiv, transfers_other").eq("cycle", cycle).gte("calc_version", CALC_VERSION));
   if (!rows) return null;
   recordDiag({ read: rows.length + 1 });
-  return { cycle, complete: true, shares: rows.map((r) => n(r.out_of_state_share)).filter((x): x is number => x !== null) };
+  // Unreliable donor-state totals and shares outside 0–100 never enter the trend.
+  const shares = rows.map((r) => usableShare({ share: n(r.out_of_state_share), donorStateSum: n(r.donor_state_sum), itemized: n(r.itemized_indiv), transfersOther: n(r.transfers_other) })).filter((x): x is number => x !== null);
+  return { cycle, complete: true, shares };
 }
 
 export async function updateComputeStatus(chamber: Chamber, cycle: number, state: string, total: number, done: number) {
@@ -102,30 +105,25 @@ export async function updateComputeStatus(chamber: Chamber, cycle: number, state
   if (r) recordDiag({ written: 1 });
 }
 
-export type ShareRow = { cand_id: string; name: string; party: string; state: string; district: string | null; itemized: number | null; outState: number | null; share: number | null };
+export type ShareRow = {
+  cand_id: string; name: string; party: string; state: string; district: string | null;
+  receipts: number | null; itemized: number | null; transfersOther: number | null; committee: string | null;
+  inState: number | null; outState: number | null; donorStateSum: number | null; share: number | null;
+};
 /** All computed candidates for a chamber + cycle; null when the tables can't be reached. */
 export async function readComputed(chamber: Chamber, cycle: number, state?: string): Promise<ShareRow[] | null> {
   const t = T(chamber);
-  const cols = chamber === "house" ? "cand_id,name,party,state,district,itemized_indiv,out_of_state,out_of_state_share" : "cand_id,name,party,state,itemized_indiv,out_of_state,out_of_state_share";
+  const cols = chamber === "house" ? "cand_id,name,party,state,district,principal_committee,receipts,itemized_indiv,transfers_other,in_state,out_of_state,donor_state_sum,out_of_state_share" : "cand_id,name,party,state,principal_committee,receipts,itemized_indiv,transfers_other,in_state,out_of_state,donor_state_sum,out_of_state_share";
   let q = supabase.from(t.res).select(cols).eq("cycle", cycle).gte("calc_version", CALC_VERSION).limit(5000);
   if (state) q = q.eq("state", state);
   const rows = await safe<any[]>(`${t.res} read`, q);
   if (!rows) return null;
   recordDiag({ read: rows.length });
-  return rows.map((r) => ({ cand_id: r.cand_id, name: r.name, party: r.party ?? "", state: String(r.state).trim(), district: r.district ? String(r.district).trim() : null, itemized: n(r.itemized_indiv), outState: n(r.out_of_state), share: n(r.out_of_state_share) }));
+  // One person can hold two FEC candidate IDs with the same principal committee; count that money once.
+  return dedupeByCommittee(rows.map((r) => ({ cand_id: r.cand_id, name: r.name, party: r.party ?? "", state: String(r.state).trim(), district: r.district ? String(r.district).trim() : null, committee: r.principal_committee ? String(r.principal_committee).trim() : null, receipts: n(r.receipts), itemized: n(r.itemized_indiv), transfersOther: n(r.transfers_other), inState: n(r.in_state), outState: n(r.out_of_state), donorStateSum: n(r.donor_state_sum), share: n(r.out_of_state_share) })));
 }
 
-export type Group = { median: number | null; count: number };
-export function groupMedians(rows: ShareRow[], key: (r: ShareRow) => string | null): Map<string, Group> {
-  const by = new Map<string, number[]>();
-  const counts = new Map<string, number>();
-  for (const r of rows) {
-    const k = key(r); if (!k) continue;
-    counts.set(k, (counts.get(k) ?? 0) + 1);
-    if (r.share !== null) by.set(k, [...(by.get(k) ?? []), r.share]);
-  }
-  return new Map([...counts.keys()].map((k) => [k, { median: median(by.get(k) ?? []), count: counts.get(k)! }]));
-}
+export { groupMedians, type Group } from "@/lib/share";
 
 /** States marked complete in compute_status for a chamber + cycle; null when unreachable. */
 export async function readCompleteStates(chamber: Chamber, cycle: number): Promise<Set<string> | null> {
